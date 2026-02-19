@@ -1,0 +1,36 @@
+name: face_id
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  
+  # Gestión de cámara
+  camera: ^0.11.0+1
+  
+  # Detección de rostros
+  google_mlkit_face_detection: ^0.13.2
+  
+  # Manejo de rutas y archivos
+  path_provider: ^2.1.1
+  path: ^1.8.3
+  
+  # Comunicación con la API
+  http: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  # Aquí agregarás los assets del modelo de IA más adelante
