@@ -35,17 +35,13 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  void _login(BuildContext context, UserRole role) async {
-    // Generamos un usuario de prueba para validar la persistencia (RF-04)
-    final user = UserModel(
-      id: "u_test_01", 
-      name: "Héctor Kaleb", 
-      role: role
-    );
-    
-    await _auth.saveUserSession(user);
-    print("Vibe Check: Sesión de ${role.name} guardada localmente.");
-    
-    // El siguiente movimiento será la navegación a la cámara para el Split Computing
-  }
+void _login(BuildContext context, UserRole role) async {
+  final user = UserModel(id: "u_test_01", name: "Héctor Kaleb", role: role);
+  await _auth.saveUserSession(user);
+  
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => const FaceCameraScreen()),
+  );
+}
 }
