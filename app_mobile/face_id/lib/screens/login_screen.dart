@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import 'camara_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   final AuthService _auth = AuthService();
