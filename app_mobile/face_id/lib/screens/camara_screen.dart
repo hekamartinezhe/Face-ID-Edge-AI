@@ -6,6 +6,7 @@ import 'dart:math' as dart_math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../services/api_client.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 class FaceCameraScreen extends StatefulWidget {
@@ -25,8 +26,7 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
 
   final TextEditingController _nameController = TextEditingController();
 
-  // ⚠️ CAMBIA ESTO por tu URL actual de ngrok
-  final String apiUrl = "https://b074-177-229-178-140.ngrok-free.app";
+  // Usamos `ApiClient.instance.baseUrl` en lugar de una URL hardcodeada
 
   // Detector principal (validación de calidad)
   final FaceDetector _faceDetector = FaceDetector(
@@ -93,16 +93,10 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
   Future<void> _checkApiStatus() async {
     setState(() => _isCheckingApi = true);
     try {
-      final response = await http
-          .get(Uri.parse('$apiUrl/status'))
-          .timeout(const Duration(seconds: 5));
-      setState(() => _isApiConnected = response.statusCode == 200);
-      _showSnack(
-        response.statusCode == 200
-            ? "✅ Conectado al servidor"
-            : "⚠️ Error ${response.statusCode}",
-        isError: response.statusCode != 200,
-      );
+      final ok = await ApiClient.instance.checkStatus();
+      setState(() => _isApiConnected = ok);
+      _showSnack(ok ? "✅ Conectado al servidor" : "❌ No se pudo conectar a la API",
+          isError: !ok);
     } catch (e) {
       setState(() => _isApiConnected = false);
       _showSnack("❌ No se pudo conectar a la API", isError: true);
@@ -299,51 +293,36 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
         return;
       }
 
-      // 3. Extraer vector 512d con ML Kit landmarks + contornos
+      // 3. Extraer vector (solo para mostrar en panel de debug)
       final embeddings = await _extractEmbeddings(image);
 
       // 4. Guardar y mostrar panel
       setState(() => _lastEmbeddings = embeddings);
       _toggleVectorPanel(forceOpen: true);
 
-      // 5. Preparar payload
-      final String endpoint = mode == "register" ? "/register" : "/asistence";
-      final Map<String, dynamic> body = mode == "register"
-          ? {'nombre': _nameController.text.trim(), 'vector': embeddings}
-          : {'vector': embeddings};
+      // 5. Enviar imagen al servidor usando ApiClient (multipart)
+      final bytes = await image.readAsBytes();
 
-      debugPrint("\n📤 POST $endpoint — ${embeddings.length}d");
-      debugPrint("   Payload: ${jsonEncode(body).length} bytes");
-
-      // 6. Enviar a FastAPI
-      final response = await http
-          .post(
-            Uri.parse('$apiUrl$endpoint'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      final result = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        if (mode == "register") {
-          _showSnack("✅ ${result['message']}");
-          _nameController.clear();
+      if (mode == "register") {
+        final nombre = _nameController.text.trim();
+        final res = await ApiClient.instance.sendRegister(bytes, nombre, filename: image.name);
+        if (res.status == 'error') {
+          _showSnack('❌ Registro fallido: ${res.message}', isError: true);
         } else {
-          if (result['reconocido'] == true) {
-            _showSnack(
-              "✅ Hola ${result['nombre']} (${(result['confianza'] * 100).toStringAsFixed(1)}%)",
-            );
-          } else {
-            _showSnack(
-              "🚫 ${result['mensaje']} (${(result['confianza'] * 100).toStringAsFixed(1)}%)",
-              isError: true,
-            );
-          }
+          _showSnack('✅ Registrado: ${res.message ?? nombre}');
+          _nameController.clear();
         }
       } else {
-        _showSnack("❌ Error: ${result['detail']}", isError: true);
+        final res = await ApiClient.instance.sendImageForAssistance(bytes, filename: image.name);
+        if (res.status == 'error') {
+          _showSnack('❌ Error API: ${res.message}', isError: true);
+        } else if (res.match) {
+          final confPct = (res.confidence ?? 0.0) * 100.0;
+          _showSnack('✅ Hola ${res.label} (${confPct.toStringAsFixed(1)}%)');
+        } else {
+          final confPct = (res.confidence ?? 0.0) * 100.0;
+          _showSnack('🚫 Desconocido — confianza ${confPct.toStringAsFixed(1)}%', isError: true);
+        }
       }
     } catch (e) {
       _showSnack("📡 Error: $e", isError: true);
