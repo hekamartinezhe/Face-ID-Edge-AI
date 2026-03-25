@@ -1,0 +1,4 @@
+{"vector": [0, 0, 0], "score": 1.0, "image_path": null, "processed_at": 1774461701.3380556, "original": {"nombre": "TestUser", "vector": [0, 0, 0], "timestamp": "2026-03-25T17:34:07.312101"}}
+{"vector": [1, 2, 3, 4, 5], "score": 1.0, "image_path": null, "processed_at": 1774462504.45515, "original": {"nombre": "Demo1", "vector": [1, 2, 3, 4, 5]}}
+{"vector": [10, 9, 8, 7, 6], "score": 1.0, "image_path": null, "processed_at": 1774462504.4554548, "original": {"nombre": "Demo2", "vector": [10, 9, 8, 7, 6]}}
+{"vector": [0, 0, 0, 1, 0], "score": 1.0, "image_path": null, "processed_at": 1774462504.455742, "original": {"nombre": "Demo3", "vector": [0, 0, 0, 1, 0]}}
