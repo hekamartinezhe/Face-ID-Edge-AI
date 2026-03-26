@@ -111,7 +111,7 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
     final List<Face> faces = await _faceDetector.processImage(inputImage);
 
     if (faces.isEmpty) {
-      _showSnack("❌ No se detectó ningún rostro. Centra tu cara.", isError: true);
+      _showSnack("❌ No se detectó ningún rostro.  tu cara.", isError: true);
       return false;
     }
     if (faces.length > 1) {

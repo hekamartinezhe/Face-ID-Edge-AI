@@ -10,7 +10,7 @@ class ApiClient {
   static final ApiClient instance = ApiClient._();
 
   // Por defecto uso tu túnel ngrok; puedes cambiarlo en tiempo de ejecución.
-  String baseUrl = 'https://735d-177-229-178-140.ngrok-free.app';
+  String baseUrl = 'https://04a6-177-229-178-140.ngrok-free.app';
   bool serverOnline = false;
   Map<String, dynamic>? serverInfo;
 
@@ -62,10 +62,10 @@ class ApiClient {
     return RecognitionResult.fromJson(data);
   }
 
-  /// Envía una imagen (multipart/form-data) al endpoint `/asistancee` de tu API.
+  /// Envía una imagen (multipart/form-data) al endpoint `/asistence` de tu API.
   /// El servidor responde con JSON: { "resultado": "reconocido"|"desconocido", ... }
   Future<RecognitionResult> sendImageForAssistance(Uint8List imageBytes, {String? filename, String? token}) async {
-    final uri = Uri.parse('$baseUrl/asistancee');
+    final uri = Uri.parse('$baseUrl/asistence');
     final request = http.MultipartRequest('POST', uri);
     request.files.add(http.MultipartFile.fromBytes('file', imageBytes, filename: filename ?? 'frame.jpg'));
     if (token != null) request.headers['Authorization'] = 'Bearer $token';

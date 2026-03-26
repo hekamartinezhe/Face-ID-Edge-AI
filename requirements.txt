@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+motor
+anyio
+pillow
+numpy
+torch
+opencv-python
+pyngrok

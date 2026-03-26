@@ -60,6 +60,7 @@ class AdaFaceInference:
             cv2.imwrite(tmp_path, frame_numpy_bgr)
             aligned = align.get_aligned_face(tmp_path)
             if aligned is None:
+                print("[WARNING] Face alignment returned None - no face detected or alignment failed")
                 return (None, 0.0)
             input_tensor = self.to_input(aligned)
             with torch.no_grad():
@@ -68,7 +69,10 @@ class AdaFaceInference:
             vec = feat.cpu().numpy().reshape(-1).tolist()
             # return vector and quality norm score
             return (vec, float(norm.cpu().numpy().reshape(-1)[0]))
-        except Exception:
+        except Exception as e:
+            print(f"[ERROR] Exception in run_inference: {e}")
+            import traceback
+            traceback.print_exc()
             return (None, 0.0)
 
 def to_input(pil_rgb_image):

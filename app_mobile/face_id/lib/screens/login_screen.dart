@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import 'camara_screen.dart';
+import 'tomar_asistencia_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   final AuthService _auth = AuthService();
@@ -40,9 +41,16 @@ void _login(BuildContext context, UserRole role) async {
   final user = UserModel(id: "u_test_01", name: "Héctor Kaleb", role: role);
   await _auth.saveUserSession(user);
   
+  Widget nextScreen;
+  if (role == UserRole.alumno) {
+    nextScreen = const TomarAsistenciaScreen();
+  } else {
+    nextScreen = const FaceCameraScreen();
+  }
+  
   Navigator.push(
     context,
-    MaterialPageRoute(builder: (context) => const FaceCameraScreen()),
+    MaterialPageRoute(builder: (context) => nextScreen),
   );
 }
 }

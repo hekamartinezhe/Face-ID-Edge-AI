@@ -23,13 +23,27 @@ def get_aligned_face(image_path, rgb_pil_image=None):
     else:
         assert isinstance(rgb_pil_image, Image.Image), 'Face alignment module requires PIL image or path to the image'
         img = rgb_pil_image
+    
+    # Validar que la imagen tenga dimensiones válidas
+    if img.size[0] < 50 or img.size[1] < 50:
+        print('Face detection Failed: Image too small')
+        return None
+    
     # find face
     try:
         bboxes, faces = mtcnn_model.align_multi(img, limit=1)
-        face = faces[0]
+        if not faces or len(faces) == 0:
+            print('Face detection: No face detected')
+            face = None
+        else:
+            face = faces[0]
+    except IndexError as e:
+        print('Face detection Failed due to error.')
+        print(f'IndexError: {e}')
+        face = None
     except Exception as e:
         print('Face detection Failed due to error.')
-        print(e)
+        print(f'Exception: {type(e).__name__}: {e}')
         face = None
 
     return face
