@@ -83,10 +83,17 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen> {
           );
         } else {
           // Navegar a error
+          String mensaje = 'No identificado';
+          if (data.containsKey('error')) {
+            mensaje = data['error'];
+          }
+          if (data.containsKey('mensaje')) {
+            mensaje += '\n\n' + data['mensaje'];
+          }
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ErrorScreen(mensaje: 'No identificado'),
+              builder: (context) => ErrorScreen(mensaje: mensaje),
             ),
           );
         }
@@ -115,6 +122,24 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen> {
           : Stack(
               children: [
                 CameraPreview(_controller!),
+                // Overlay con instrucciones
+                Positioned(
+                  top: 20,
+                  left: 20,
+                  right: 20,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      '📸 Instrucciones:\n• Mira directamente a la cámara\n• Asegúrate de buena iluminación\n• Mantén el rostro centrado\n• Evita lentes o sombreros',
+                      style: TextStyle(color: Colors.white, fontSize: 14),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
                 if (_isProcessing)
                   Container(
                     color: Colors.black54,
@@ -177,16 +202,25 @@ class ErrorScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Error')),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error, color: Colors.red, size: 100),
-            Text(mensaje),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Reintentar'),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error, color: Colors.red, size: 100),
+              const SizedBox(height: 20),
+              Text(
+                mensaje,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Reintentar'),
+              ),
+            ],
+          ),
         ),
       ),
     );
