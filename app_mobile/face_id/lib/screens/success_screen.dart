@@ -10,12 +10,26 @@ class SuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final args =
+        (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ??
+            {};
+    final String mode = (args['mode'] as String?) ?? 'attendance';
+    final String status = (args['status'] as String?) ?? 'Presente';
+    final String name =
+        (args['name'] as String?) ?? 'Hector Kaleb Martinez Hernandez';
+    final String matricula = (args['matricula'] as String?) ?? 'TIC-320042';
+    final bool isEnrollment = mode == 'enrollment';
+
     final now = TimeOfDay.now();
     final horaActual =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Resultado de Asistencia')),
+      appBar: AppBar(
+        title: Text(
+          isEnrollment ? 'Resultado de Enrolamiento' : 'Resultado de Asistencia',
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -28,7 +42,7 @@ class SuccessScreen extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             const Text(
-              'Reconocimiento Exitoso',
+              'Operacion Exitosa',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
@@ -47,22 +61,26 @@ class SuccessScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Asistencia registrada: Hector Kaleb Martinez Hernandez - $horaActual',
+                    isEnrollment
+                        ? 'Alumno registrado correctamente: $name'
+                        : 'Asistencia registrada: $name - $horaActual',
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Matricula: TIC-320042',
-                    style: TextStyle(color: AppColors.textSecondary),
+                  Text(
+                    'Matricula: $matricula',
+                    style: const TextStyle(color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Estatus: Presente',
+                  Text(
+                    isEnrollment ? 'Estatus: Enrolado' : 'Estatus: $status',
                     style: TextStyle(
-                      color: AppColors.successGreen,
+                      color: status == 'Retardo'
+                          ? const Color(0xFFF2C94C)
+                          : AppColors.successGreen,
                       fontWeight: FontWeight.w700,
                     ),
                   ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'screens/camera_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/enrollment_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/schedules_screen.dart';
 import 'screens/success_screen.dart';
@@ -26,6 +27,7 @@ class FaceIDApp extends StatelessWidget {
         CameraScreen.routeName: (_) => const CameraScreen(),
         SuccessScreen.routeName: (_) => const SuccessScreen(),
         SchedulesScreen.routeName: (_) => const SchedulesScreen(),
+        EnrollmentScreen.routeName: (_) => const EnrollmentScreen(),
       },
       theme: ThemeData(
         useMaterial3: true,

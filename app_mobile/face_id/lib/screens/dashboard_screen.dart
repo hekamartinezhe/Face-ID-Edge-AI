@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import 'camera_screen.dart';
+import 'enrollment_screen.dart';
 import 'login_screen.dart';
 import 'schedules_screen.dart';
 
@@ -11,6 +12,15 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final args =
+        (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ??
+            {};
+    final bool isDocente = args['isDocente'] == true;
+    final String actorLabel = isDocente ? 'Docente activo' : 'Alumno activo';
+    final String actorName = isDocente
+        ? 'Lizbeth Geraldine Ibarra Carlos'
+        : 'Hector Kaleb Martinez Hernandez';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
@@ -68,32 +78,34 @@ class DashboardScreen extends StatelessWidget {
                   color: AppColors.deepBlue.withOpacity(0.15),
                 ),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Alumno para evidencia',
-                    style: TextStyle(
+                    actorLabel,
+                    style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 13,
                     ),
                   ),
-                  SizedBox(height: 6),
+                  const SizedBox(height: 6),
                   Text(
-                    'Hector Kaleb Martinez Hernandez',
-                    style: TextStyle(
+                    actorName,
+                    style: const TextStyle(
                       fontSize: 19,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Matricula: TIC-320042',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
+                  if (!isDocente) ...[
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Matricula: TIC-320042',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -103,9 +115,25 @@ class DashboardScreen extends StatelessWidget {
                 backgroundColor: AppColors.deepBlue,
                 foregroundColor: AppColors.onDeepBlue,
               ),
-              onPressed: () => Navigator.pushNamed(context, CameraScreen.routeName),
+              onPressed: () => Navigator.pushNamed(
+                context,
+                CameraScreen.routeName,
+                arguments: {'mode': 'attendance'},
+              ),
               icon: const Icon(Icons.camera_alt_rounded),
-              label: const Text('Ir a Camara'),
+              label: const Text('Registrar Asistencia'),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.deepBlue,
+                foregroundColor: AppColors.onDeepBlue,
+              ),
+              onPressed: isDocente
+                  ? () => Navigator.pushNamed(context, EnrollmentScreen.routeName)
+                  : null,
+              icon: const Icon(Icons.person_add_alt_1_rounded),
+              label: const Text('Registrar Nuevo Alumno'),
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
@@ -113,10 +141,23 @@ class DashboardScreen extends StatelessWidget {
                 backgroundColor: AppColors.successGreen,
                 foregroundColor: AppColors.onSuccessGreen,
               ),
-              onPressed: () => Navigator.pushNamed(context, SchedulesScreen.routeName),
+              onPressed: isDocente
+                  ? () => Navigator.pushNamed(context, SchedulesScreen.routeName)
+                  : null,
               icon: const Icon(Icons.schedule_rounded),
               label: const Text('Gestion de Horarios (Docente)'),
             ),
+            if (!isDocente) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Activa perfil Docente en login para habilitar Gestion.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ],
         ),
       ),

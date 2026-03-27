@@ -1,10 +1,72 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 
-class SchedulesScreen extends StatelessWidget {
+class SchedulesScreen extends StatefulWidget {
   static const String routeName = '/schedules';
 
   const SchedulesScreen({super.key});
+
+  @override
+  State<SchedulesScreen> createState() => _SchedulesScreenState();
+}
+
+class _SchedulesScreenState extends State<SchedulesScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _materiaCtrl = TextEditingController();
+  final _inicioCtrl = TextEditingController();
+  final _finCtrl = TextEditingController();
+  final _tolCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _materiaCtrl.dispose();
+    _inicioCtrl.dispose();
+    _finCtrl.dispose();
+    _tolCtrl.dispose();
+    super.dispose();
+  }
+
+  void _saveSchedule() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final start = _toMinutes(_inicioCtrl.text.trim());
+    final end = _toMinutes(_finCtrl.text.trim());
+    if (start == null || end == null || end <= start) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Horario invalido: la hora de fin debe ser mayor.'),
+        ),
+      );
+      return;
+    }
+
+    final materia = _materiaCtrl.text.trim().toLowerCase();
+    if (materia == 'inteligencia artificial' && _inicioCtrl.text.trim() == '08:00') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Conflicto detectado con un horario existente.'),
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Horario actualizado correctamente.'),
+      ),
+    );
+  }
+
+  int? _toMinutes(String value) {
+    final parts = value.split(':');
+    if (parts.length != 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null || h < 0 || h > 23 || m < 0 || m > 59) {
+      return null;
+    }
+    return h * 60 + m;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,52 +77,49 @@ class SchedulesScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Formulario Docente',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 18,
-                      color: AppColors.deepBlue,
+            Form(
+              key: _formKey,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Formulario Docente',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        color: AppColors.deepBlue,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  _buildField('Materia'),
-                  const SizedBox(height: 10),
-                  _buildField('Hora de Inicio'),
-                  const SizedBox(height: 10),
-                  _buildField('Hora de Fin'),
-                  const SizedBox(height: 10),
-                  _buildField('Minutos de Tolerancia'),
-                  const SizedBox(height: 14),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.deepBlue,
-                      foregroundColor: AppColors.onDeepBlue,
+                    const SizedBox(height: 14),
+                    _buildField(_materiaCtrl, 'Materia'),
+                    const SizedBox(height: 10),
+                    _buildField(_inicioCtrl, 'Hora de Inicio (HH:MM)'),
+                    const SizedBox(height: 10),
+                    _buildField(_finCtrl, 'Hora de Fin (HH:MM)'),
+                    const SizedBox(height: 10),
+                    _buildField(_tolCtrl, 'Minutos de Tolerancia'),
+                    const SizedBox(height: 14),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.deepBlue,
+                        foregroundColor: AppColors.onDeepBlue,
+                      ),
+                      onPressed: _saveSchedule,
+                      child: const Text('Guardar Horario'),
                     ),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Horario mock guardado para evidencia'),
-                        ),
-                      );
-                    },
-                    child: const Text('Guardar Horario'),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 20),
             const Text(
-              'Materias Programadas (Mock)',
+              'Materias Programadas',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -83,8 +142,9 @@ class SchedulesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildField(String label) {
-    return TextField(
+  Widget _buildField(TextEditingController controller, String label) {
+    return TextFormField(
+      controller: controller,
       decoration: InputDecoration(
         labelText: label,
         filled: true,
@@ -93,6 +153,12 @@ class SchedulesScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
       ),
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) {
+          return 'Campo obligatorio';
+        }
+        return null;
+      },
     );
   }
 

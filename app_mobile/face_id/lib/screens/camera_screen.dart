@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
 import '../app_colors.dart';
 import 'success_screen.dart';
 
@@ -12,13 +13,67 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen> {
+  CameraController? _cameraController;
+  bool _cameraReady = false;
+  String? _cameraError;
   bool _showBoundingBox = false;
   bool _isProcessing = false;
+  Color _boxColor = AppColors.successGreen;
+
+  @override
+  void initState() {
+    super.initState();
+    _initCamera();
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        setState(() {
+          _cameraError = 'No se detecto ninguna camara disponible.';
+        });
+        return;
+      }
+      final frontCam = cameras.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.front,
+        orElse: () => cameras.first,
+      );
+      final controller = CameraController(
+        frontCam,
+        ResolutionPreset.high,
+        enableAudio: false,
+      );
+      await controller.initialize();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      setState(() {
+        _cameraController = controller;
+        _cameraReady = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _cameraError = 'No fue posible iniciar la camara.';
+      });
+    }
+  }
 
   Future<void> _simulateCaptureFlow() async {
-    if (_isProcessing) return;
+    if (_isProcessing || !_cameraReady) return;
+    final args =
+        (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ??
+            {};
+    final String mode = (args['mode'] as String?) ?? 'attendance';
+    final bool isEnrollment = mode == 'enrollment';
+    final now = TimeOfDay.now();
+    final bool isRetardo = !isEnrollment && now.minute > 10;
+
     setState(() {
       _showBoundingBox = true;
+      _boxColor = isRetardo ? const Color(0xFFF2C94C) : AppColors.successGreen;
     });
 
     await Future.delayed(const Duration(milliseconds: 700));
@@ -28,11 +83,20 @@ class _CameraScreenState extends State<CameraScreen> {
       _isProcessing = true;
     });
 
-    // Simula recorte y generacion de Face Chips 112x112.
+    // Simula procesamiento asíncrono edge.
     await Future.delayed(const Duration(milliseconds: 1500));
 
     if (!mounted) return;
-    Navigator.pushNamed(context, SuccessScreen.routeName);
+    Navigator.pushNamed(
+      context,
+      SuccessScreen.routeName,
+      arguments: {
+        'mode': mode,
+        'status': isRetardo ? 'Retardo' : 'Presente',
+        'name': (args['name'] as String?) ?? 'Hector Kaleb Martinez Hernandez',
+        'matricula': (args['matricula'] as String?) ?? 'TIC-320042',
+      },
+    );
 
     setState(() {
       _isProcessing = false;
@@ -42,8 +106,18 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final args =
+        (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ??
+            {};
+    final String mode = (args['mode'] as String?) ?? 'attendance';
+    final bool isEnrollment = mode == 'enrollment';
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Captura de Rostro')),
+      appBar: AppBar(
+        title: Text(
+          isEnrollment ? 'Enrolamiento Biometrico' : 'Registro de Asistencia',
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -63,10 +137,11 @@ class _CameraScreenState extends State<CameraScreen> {
                   children: [
                     Container(
                       margin: const EdgeInsets.all(14),
+                      clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE8EEF9),
                         borderRadius: BorderRadius.circular(14),
                       ),
+                      child: _buildCameraLayer(),
                     ),
                     // Overlay circular de alineacion.
                     IgnorePointer(
@@ -108,7 +183,7 @@ class _CameraScreenState extends State<CameraScreen> {
                         height: 210,
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: AppColors.successGreen,
+                            color: _boxColor,
                             width: 3,
                           ),
                           borderRadius: BorderRadius.circular(8),
@@ -124,21 +199,23 @@ class _CameraScreenState extends State<CameraScreen> {
                               color: AppColors.surface,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Column(
+                            child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                CircularProgressIndicator(
+                                const CircularProgressIndicator(
                                   color: AppColors.deepBlue,
                                 ),
-                                SizedBox(height: 12),
-                                Text(
+                                const SizedBox(height: 12),
+                                const Text(
                                   'Procesando en Servidor Remoto (Edge)...',
                                   textAlign: TextAlign.center,
                                 ),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 Text(
-                                  'Generando Face Chips (112x112)',
-                                  style: TextStyle(
+                                  isEnrollment
+                                      ? 'Generando Face Chips (112x112)'
+                                      : 'Comparando embeddings en servidor',
+                                  style: const TextStyle(
                                     color: AppColors.textSecondary,
                                     fontSize: 12,
                                   ),
@@ -158,13 +235,39 @@ class _CameraScreenState extends State<CameraScreen> {
                 backgroundColor: AppColors.deepBlue,
                 foregroundColor: AppColors.onDeepBlue,
               ),
-              onPressed: _isProcessing ? null : _simulateCaptureFlow,
+              onPressed: (_isProcessing || !_cameraReady)
+                  ? null
+                  : _simulateCaptureFlow,
               icon: const Icon(Icons.camera_alt_rounded),
-              label: const Text('Capturar'),
+              label: Text(isEnrollment ? 'Capturar Rafaga' : 'Capturar'),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildCameraLayer() {
+    if (_cameraError != null) {
+      return Center(
+        child: Text(
+          _cameraError!,
+          style: const TextStyle(color: AppColors.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+    if (!_cameraReady || _cameraController == null) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.deepBlue),
+      );
+    }
+    return CameraPreview(_cameraController!);
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    super.dispose();
   }
 }
