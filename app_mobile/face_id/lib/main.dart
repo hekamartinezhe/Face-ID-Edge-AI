@@ -1,21 +1,13 @@
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
+import 'screens/camera_screen.dart';
+import 'screens/dashboard_screen.dart';
 import 'screens/login_screen.dart';
-import 'services/api_client.dart';
+import 'screens/schedules_screen.dart';
+import 'screens/success_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Chequeo rápido del estado de la API antes de iniciar la UI.
-  final ok = await ApiClient.instance.checkStatus();
-  if (ok) {
-    final info = ApiClient.instance.serverInfo;
-    // Puedes hacer logging aquí si quieres
-    // print('API online: $info');
-  } else {
-    // Si no está, dejamos la app correr pero con serverOnline=false
-    // print('API offline o inaccesible');
-  }
-
   runApp(const FaceIDApp());
 }
 
@@ -27,12 +19,38 @@ class FaceIDApp extends StatelessWidget {
     return MaterialApp(
       title: 'Face-ID Edge AI',
       debugShowCheckedModeBanner: false,
+      initialRoute: LoginScreen.routeName,
+      routes: {
+        LoginScreen.routeName: (_) => const LoginScreen(),
+        DashboardScreen.routeName: (_) => const DashboardScreen(),
+        CameraScreen.routeName: (_) => const CameraScreen(),
+        SuccessScreen.routeName: (_) => const SuccessScreen(),
+        SchedulesScreen.routeName: (_) => const SchedulesScreen(),
+      },
       theme: ThemeData(
-        primarySwatch: Colors.blue,
         useMaterial3: true,
+        scaffoldBackgroundColor: AppColors.background,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.deepBlue,
+          primary: AppColors.deepBlue,
+          secondary: AppColors.successGreen,
+          surface: AppColors.surface,
+          background: AppColors.background,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.deepBlue,
+          foregroundColor: AppColors.onDeepBlue,
+          centerTitle: true,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size.fromHeight(50),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
       ),
-      // Aquí conectamos tu nueva interfaz
-      home: LoginScreen(),
     );
   }
 }
