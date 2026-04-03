@@ -1,0 +1,160 @@
+.
+├── ai_research
+│   ├── assets
+│   │   ├── adaface_demo5.gif
+│   │   ├── main_figure.png
+│   │   ├── ms1mv2_train_subset_index.txt
+│   │   └── video_thumbnail.png
+│   ├── camara_adaface.py
+│   ├── config.py
+│   ├── convert.py
+│   ├── data.py
+│   ├── dataset
+│   │   ├── augmenter.py
+│   │   ├── five_validation_dataset.py
+│   │   ├── image_folder_dataset.py
+│   │   └── record_dataset.py
+│   ├── evaluate_utils.py
+│   ├── face_alignment
+│   │   ├── align.py
+│   │   ├── mtcnn.py
+│   │   ├── mtcnn_pytorch
+│   │   │   ├── caffe_models
+│   │   │   │   ├── det1.caffemodel
+│   │   │   │   ├── det1.prototxt
+│   │   │   │   ├── det2.caffemodel
+│   │   │   │   ├── det2.prototxt
+│   │   │   │   ├── det3.caffemodel
+│   │   │   │   ├── det3.prototxt
+│   │   │   │   ├── det4.caffemodel
+│   │   │   │   └── det4.prototxt
+│   │   │   ├── extract_weights_from_caffe_models.py
+│   │   │   ├── get_aligned_face_from_mtcnn.ipynb
+│   │   │   ├── images
+│   │   │   │   └── example.png
+│   │   │   ├── LICENSE
+│   │   │   ├── README.md
+│   │   │   ├── refine_faces.ipynb
+│   │   │   ├── src
+│   │   │   │   ├── align_trans.py
+│   │   │   │   ├── box_utils.py
+│   │   │   │   ├── detector.py
+│   │   │   │   ├── first_stage.py
+│   │   │   │   ├── get_nets.py
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── matlab_cp2tform.py
+│   │   │   │   ├── visualization_utils.py
+│   │   │   │   └── weights
+│   │   │   │       ├── onet.npy
+│   │   │   │       ├── pnet.npy
+│   │   │   │       └── rnet.npy
+│   │   │   ├── test_on_images.ipynb
+│   │   │   └── try_mtcnn_step_by_step.ipynb
+│   │   └── test_images
+│   │       ├── img1.jpeg
+│   │       ├── img2.jpeg
+│   │       └── img3.jpeg
+│   ├── head.py
+│   ├── inference.py
+│   ├── LICENSE
+│   ├── main.py
+│   ├── mai.py
+│   ├── model
+│   │   └── common.py
+│   ├── models
+│   │   └── adaface_ir101_ms1mv3.ckpt
+│   ├── net.py
+│   ├── prueba_adaface.py
+│   ├── README.md
+│   ├── README_TRAIN.md
+│   ├── requirements.txt
+│   ├── scripts
+│   │   ├── run_ir101_ms1mv2.sh
+│   │   └── run_ir50_ms1mv2.sh
+│   ├── train_val.py
+│   ├── utils.py
+│   ├── validation_hq
+│   │   └── eval_5valsets.sh
+│   ├── validation_lq
+│   │   ├── data_utils.py
+│   │   ├── eval_ijbs.sh
+│   │   ├── evaluate_helper.py
+│   │   ├── PFE
+│   │   │   ├── ijbs.py
+│   │   │   └── utils.py
+│   │   ├── README.md
+│   │   ├── tinyface_helper.py
+│   │   ├── validate_IJB_S.py
+│   │   └── validate_tinyface.py
+│   ├── validation_mixed
+│   │   ├── eval_ijb.sh
+│   │   ├── insightface_ijb_helper
+│   │   │   ├── dataloader.py
+│   │   │   ├── eval_helper_all_proto.py
+│   │   │   ├── eval_helper_identification.py
+│   │   │   ├── eval_helper.py
+│   │   │   ├── infer_helper.py
+│   │   │   └── recognition
+│   │   │       ├── embedding.py
+│   │   │       ├── embedding_pytorch.py
+│   │   │       ├── fp16_grad.py
+│   │   │       └── __init__.py
+│   │   ├── README.md
+│   │   └── validate_IJB_BC.py
+│   └── weights
+│       ├── onet.npy
+│       ├── pnet.npy
+│       └── rnet.npy
+├── app_mobile
+│   └── face_id
+│       ├── android
+│       │   ├── app
+│       │   │   └── src
+│       │   │       └── main
+│       │   │           └── java
+│       │   │               └── io
+│       │   │                   └── flutter
+│       │   │                       └── plugins
+│       │   │                           └── GeneratedPluginRegistrant.java
+│       │   ├── gradle
+│       │   │   └── wrapper
+│       │   │       └── gradle-wrapper.jar
+│       │   ├── gradlew
+│       │   ├── gradlew.bat
+│       │   └── local.properties
+│       ├── build
+│       │   └── 63a7f69fb1c3cde3e73d8b90b1ad3fb1
+│       │       ├── _composite.stamp
+│       │       ├── gen_dart_plugin_registrant.stamp
+│       │       └── gen_localizations.stamp
+│       ├── ios
+│       │   ├── Flutter
+│       │   │   ├── ephemeral
+│       │   │   │   ├── flutter_lldb_helper.py
+│       │   │   │   └── flutter_lldbinit
+│       │   │   ├── flutter_export_environment.sh
+│       │   │   └── Generated.xcconfig
+│       │   └── Runner
+│       │       ├── GeneratedPluginRegistrant.h
+│       │       └── GeneratedPluginRegistrant.m
+│       ├── linux
+│       │   └── flutter
+│       │       └── ephemeral
+│       ├── macos
+│       │   └── Flutter
+│       │       └── ephemeral
+│       │           ├── flutter_export_environment.sh
+│       │           └── Flutter-Generated.xcconfig
+│       └── windows
+│           └── flutter
+│               └── ephemeral
+├── backend_api
+├── LICENSE
+├── README.md
+├── requirements.txt
+├── scripts
+│   ├── setup_linux.fish
+│   └── setup_windows.ps1
+└── tree.txt
+
+50 directories, 108 files
