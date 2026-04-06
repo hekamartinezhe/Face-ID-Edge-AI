@@ -72,23 +72,41 @@ async def get_status(request: Request):
     }
 
 def _cosine_similarity(a: List[float], b: List[float]) -> float:
+    """
+    Calcula similitud coseno entre dos embeddings (ya normalizados).
+    Para máxima precisión, los embeddings deben estar L2-normalizados.
+    """
     a_np = np.array(a)
     b_np = np.array(b)
+    
+    # Si los embeddings ya están L2-normalizados, el dot product es suficiente
+    # pero recalculamos por si acaso
     dot = np.dot(a_np, b_np)
     norm_a = np.linalg.norm(a_np)
     norm_b = np.linalg.norm(b_np)
-    return dot / (norm_a * norm_b) if norm_a and norm_b else 0.0
+    
+    if norm_a > 0 and norm_b > 0:
+        return float(dot / (norm_a * norm_b))
+    return 0.0
 
-async def _generate_embedding(image_bytes: bytes) -> List[float]:
-    # Run in thread to avoid blocking
+async def _generate_embedding(image_bytes: bytes) -> tuple[List[float], float, float]:
+    """
+    Genera embedding a partir de bytes de imagen.
+    Retorna: (embedding_normalizado, norm_score, alignment_quality)
+    """
     def sync_generate():
         pil_image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-        # Convert to numpy BGR
+        # Convertir a numpy BGR (como lo espera el modelo)
         np_img = np.array(pil_image)[:, :, ::-1]  # RGB to BGR
-        embedding, _ = adaface.run_inference(np_img)
+        
+        # run_inference ahora retorna (embedding, norm_score, alignment_quality)
+        embedding, norm_score, alignment_quality = adaface.run_inference(np_img)
+        
         if embedding is None:
-            raise ValueError("No face detected")
-        return embedding
+            raise ValueError("No face detected or alignment failed")
+        
+        return embedding, norm_score, alignment_quality
+    
     return await anyio.to_thread.run_sync(sync_generate)
 
 @app.post("/registrar")
@@ -96,53 +114,43 @@ async def registrar_alumno(
     id_alumno: str = Form(...),
     imagen: UploadFile = UploadFile(...)
 ):
+    """
+    Registra un alumno con su embedding facial.
+    Valida calidad del rostro antes de guardar.
+    """
     try:
         image_bytes = await imagen.read()
-        embedding = await _generate_embedding(image_bytes)
+        embedding, norm_score, alignment_quality = await _generate_embedding(image_bytes)
+        
+        # Validar calidad mínima
+        min_alignment_quality = 0.5
+        if alignment_quality < min_alignment_quality:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Calidad de imagen insuficiente ({alignment_quality:.2f}). "
+                       f"Asegúrate de tener buena iluminación y que el rostro esté centrado."
+            )
+        
         doc = {
             "id_alumno": id_alumno,
             "embedding": embedding,
+            "norm_score": norm_score,
+            "alignment_quality": alignment_quality,
             "timestamp": datetime.utcnow()
         }
         await collection.insert_one(doc)
-        return {"mensaje": f"Alumno registrado: {id_alumno}"}
+        
+        return {
+            "mensaje": f"Alumno registrado: {id_alumno}",
+            "quality_metrics": {
+                "alignment_quality": round(alignment_quality, 2),
+                "norm_score": round(norm_score, 2)
+            }
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-@app.post("/asistence")
-async def verificar_asistencia(imagen: UploadFile = UploadFile(...)):
-    try:
-        image_bytes = await imagen.read()
-        embedding = await _generate_embedding(image_bytes)
-        
-        # Query all embeddings
-        cursor = collection.find({})
-        best_match = None
-        best_score = -1.0
-        async for doc in cursor:
-            stored_emb = doc.get("embedding")
-            if stored_emb:
-                score = _cosine_similarity(embedding, stored_emb)
-                if score > best_score:
-                    best_score = score
-                    best_match = doc
-        
-        threshold = 0.8  # Adjust as needed
-        if best_match and best_score >= threshold:
-            return {
-                "identificado": True,
-                "alumno": best_match["id_alumno"],
-                "confianza": best_score
-            }
-        else:
-            return {
-                "identificado": False,
-                "mensaje": "No match",
-                "confianza": best_score
-            }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

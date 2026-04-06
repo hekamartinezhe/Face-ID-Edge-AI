@@ -50,30 +50,59 @@ class AdaFaceInference:
         brg_img = ((np_img[:, :, ::-1] / 255.0) - 0.5) / 0.5
         tensor = torch.tensor([brg_img.transpose(2, 0, 1)]).float().to(self.device)
         return tensor
+    
+    def normalize_embedding(self, embedding):
+        """
+        Normaliza embedding con L2 norm para mejor similitud coseno.
+        embedding: lista de floats [512,]
+        retorna: np.array normalizado
+        """
+        emb_array = np.array(embedding)
+        norm = np.linalg.norm(emb_array)
+        if norm > 0:
+            return (emb_array / norm).tolist()
+        return embedding
 
     def run_inference(self, frame_numpy_bgr):
-        # Best-effort inference: try to align using face_alignment.align
+        """
+        Ejecuta inferencia completa: alineamiento → extracción de embedding → normalización
+        Retorna: (embedding, quality_metric, alignment_quality)
+        """
         try:
-            # align.get_aligned_face accepts path; try to support numpy by saving temporary file
+            # Guardar frame temporalmente para alineamiento
             import cv2
             tmp_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tmp_infer.jpg')
             cv2.imwrite(tmp_path, frame_numpy_bgr)
-            aligned = align.get_aligned_face(tmp_path)
+            
+            # Obtener rostro alineado y calidad
+            aligned, alignment_quality, bbox = align.get_aligned_face(tmp_path)
+            
             if aligned is None:
                 print("[WARNING] Face alignment returned None - no face detected or alignment failed")
-                return (None, 0.0)
+                return (None, 0.0, 0.0)
+            
+            # Convertir a tensor y extraer embedding
             input_tensor = self.to_input(aligned)
             with torch.no_grad():
                 feat, norm = self.model(input_tensor)
-            # convert to numpy list
-            vec = feat.cpu().numpy().reshape(-1).tolist()
-            # return vector and quality norm score
-            return (vec, float(norm.cpu().numpy().reshape(-1)[0]))
+            
+            # Obtener vector en numpy
+            vec_raw = feat.cpu().numpy().reshape(-1)
+            norm_score = float(norm.cpu().numpy().reshape(-1)[0])
+            
+            # Normalizar embedding con L2 norm
+            vec_normalized = self.normalize_embedding(vec_raw.tolist())
+            
+            print(f"[INFERENCE] Embedding extracted - alignment_quality: {alignment_quality:.2f}, norm_score: {norm_score:.2f}")
+            
+            # Retorna: (embedding_normalizado, norm_score_del_modelo, alignment_quality)
+            return (vec_normalized, norm_score, alignment_quality)
+            
         except Exception as e:
             print(f"[ERROR] Exception in run_inference: {e}")
             import traceback
             traceback.print_exc()
-            return (None, 0.0)
+            return (None, 0.0, 0.0)
 
 def to_input(pil_rgb_image):
     np_img = np.array(pil_rgb_image)
