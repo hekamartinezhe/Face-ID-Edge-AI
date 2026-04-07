@@ -31,7 +31,7 @@ print(f"Using {device}")
 
 # Initialize AdaFace
 adaface = AdaFaceInference(
-    model_path='ai_research/models/adaface_ir101_ms1mv3.ckpt',
+    model_path='models/adaface_ir101_ms1mv3.ckpt',
     architecture='ir_101',
     device=device
 )
