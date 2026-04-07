@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import uvicorn
 import os
+import sys
 import base64
 import json
 from datetime import datetime
@@ -13,6 +14,10 @@ import motor.motor_asyncio
 import anyio
 from PIL import Image
 import io
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
 # Import AdaFaceInference
 from ai_research.inference import AdaFaceInference
@@ -30,8 +35,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using {device}")
 
 # Initialize AdaFace
+ckpt_env = os.environ.get('ADAFACE_CKPT')
+ckpt_default = os.path.join(ROOT_DIR, 'ai_research', 'models', 'adaface_ir101_ms1mv3.ckpt')
+ckpt_path = ckpt_env or ckpt_default
 adaface = AdaFaceInference(
-    model_path='models/adaface_ir101_ms1mv3.ckpt',
+    model_path=ckpt_path,
     architecture='ir_101',
     device=device
 )

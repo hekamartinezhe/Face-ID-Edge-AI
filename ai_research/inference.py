@@ -1,7 +1,12 @@
-import net
+try:
+    from . import net
+    from .face_alignment import align
+except ImportError:
+    import net
+    from face_alignment import align
+
 import torch
 import os
-from face_alignment import align
 import numpy as np
 
 
