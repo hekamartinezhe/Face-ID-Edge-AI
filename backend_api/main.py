@@ -49,7 +49,7 @@ class FaceVector(BaseModel):
     embedding: List[float]
 
 # Lista blanca de IPs autorizadas
-ALLOWED_NETWORKS = ["192.168.", "127.0.0.1", "10.0."]
+ALLOWED_NETWORKS = ["192.168.", "127.0.0.1", "10.0.", "100."]
 
 app.add_middleware(
     CORSMiddleware,
