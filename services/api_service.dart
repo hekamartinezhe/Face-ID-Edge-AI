@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   // Reemplazar con la IP del server de Fer o q
-  final String baseUrl = "http://192.168.1.XX:8000"; 
+  final String baseUrl = "http://100.119.64.47:8000";
 
   Future<Map<String, dynamic>> getServerStatus() async {
     try {
