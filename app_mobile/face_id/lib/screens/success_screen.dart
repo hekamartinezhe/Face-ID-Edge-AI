@@ -22,12 +22,14 @@ class SuccessScreen extends StatelessWidget {
     final String horaActual = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
     final String status = result.message ?? 'Presente';
     final double confidence = (result.confidence ?? 0.0) * 100;
+    final bool fromTeacher = (args['fromTeacher'] as bool?) ?? false;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Resultado')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 20),
             const Icon(Icons.verified_rounded, size: 100, color: AppColors.successGreen),
@@ -35,6 +37,7 @@ class SuccessScreen extends StatelessWidget {
             const Text(
               '¡Registro Exitoso!',
               style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.deepBlue),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             Container(
@@ -53,19 +56,24 @@ class SuccessScreen extends StatelessWidget {
                   _infoRow('Hora de Registro', horaActual),
                   const Divider(height: 30),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _statusBadge(status),
-                      Text(
-                        'Confianza: ${confidence.toStringAsFixed(1)}%',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.deepBlue),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            'Confianza: ${confidence.toStringAsFixed(1)}%',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.deepBlue),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            const Spacer(),
+            const SizedBox(height: 20),
             if (mode == InferenceMode.edge)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -87,7 +95,12 @@ class SuccessScreen extends StatelessWidget {
               ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () => Navigator.pushNamedAndRemoveUntil(context, DashboardScreen.routeName, (r) => false),
+              onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                context,
+                DashboardScreen.routeName,
+                (r) => false,
+                arguments: {'isDocente': fromTeacher},
+              ),
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.deepBlue, foregroundColor: Colors.white),
               child: const Text('Volver al Inicio'),
             ),

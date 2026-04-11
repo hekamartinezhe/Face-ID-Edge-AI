@@ -31,6 +31,18 @@ class _CameraScreenState extends State<CameraScreen> {
     _initCamera();
   }
 
+  String _getLoadingText() {
+    final mode = LoadOrchestratorService.instance.mode.value;
+    switch (mode) {
+      case OrchestrationMode.forceEdge:
+        return 'Procesando en NPU Local...';
+      case OrchestrationMode.forceCloud:
+        return 'Conectando al Servidor...';
+      default:
+        return 'Orquestando inferencia...';
+    }
+  }
+
   Future<void> _initCamera() async {
     try {
       final cameras = await availableCameras();
@@ -75,6 +87,7 @@ class _CameraScreenState extends State<CameraScreen> {
     final bool isEnrollment = mode == 'enrollment';
     final String enrollmentName = args['name'] as String? ?? 'Desconocido';
     final String matricula = args['matricula'] as String? ?? 'TIC-000000';
+    final bool fromTeacher = args['fromTeacher'] as bool? ?? false;
 
     setState(() {
       _showBoundingBox = true;
@@ -105,24 +118,21 @@ class _CameraScreenState extends State<CameraScreen> {
 
       if (!mounted) return;
 
-      if (orchestration.result.status == 'error' || !orchestration.result.match) {
+      // FIX: Pasar el objeto result completo y la latencia
+      if (orchestration.result.status == 'error') {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ ${orchestration.result.message ?? "Rostro desconocido"}'),
-            backgroundColor: Colors.redAccent,
-          ),
+          SnackBar(content: Text('❌ Error: ${orchestration.result.message}')),
         );
       } else {
-        final now = TimeOfDay.now();
-        final bool isRetardo = !isEnrollment && now.minute > 15;
         Navigator.pushReplacementNamed(
           context,
           SuccessScreen.routeName,
           arguments: {
-            'mode': mode,
-            'status': isEnrollment ? 'Enrolado' : (isRetardo ? 'Retardo' : 'Presente'),
-            'name': orchestration.result.label ?? enrollmentName,
+            'result': orchestration.result,
+            'mode': orchestration.mode,
+            'latency': orchestration.latencyMs,
             'matricula': matricula,
+            'fromTeacher': fromTeacher,
           },
         );
       }
@@ -241,9 +251,10 @@ class _CameraScreenState extends State<CameraScreen> {
                                   color: AppColors.deepBlue,
                                 ),
                                 const SizedBox(height: 12),
-                                const Text(
-                                  'Procesando en Servidor Remoto (Edge)...',
+                                Text(
+                                  _getLoadingText(),
                                   textAlign: TextAlign.center,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(

@@ -1,0 +1,772 @@
+// ====== Archivo: lib/screens/login_screen.dart ======
+// ignore_for_file: deprecated_member_use
+import 'package:flutter/material.dart';
+import '../app_colors.dart';
+import 'dashboard_screen.dart';
+
+enum UserRole { alumno, docente }
+
+class LoginScreen extends StatefulWidget {
+  static const String routeName = '/login';
+
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  UserRole _selectedRole = UserRole.alumno;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              Icon(
+                Icons.verified_user_rounded,
+                size: 90,
+                color: AppColors.deepBlue,
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Face-ID Edge AI',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.deepBlue,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Acceso al sistema para demostracion final',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 18),
+              TextField(
+                controller: _emailController,
+                decoration: InputDecoration(
+                  labelText: 'Usuario / Correo',
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _passController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Contraseña',
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Perfil de acceso',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    RadioListTile<UserRole>(
+                      dense: true,
+                      value: UserRole.alumno,
+                      groupValue: _selectedRole,
+                      activeColor: AppColors.deepBlue,
+                      title: const Text('Alumno'),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => _selectedRole = value);
+                      },
+                    ),
+                    RadioListTile<UserRole>(
+                      dense: true,
+                      value: UserRole.docente,
+                      groupValue: _selectedRole,
+                      activeColor: AppColors.deepBlue,
+                      title: const Text('Docente'),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => _selectedRole = value);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.deepBlue,
+                  foregroundColor: AppColors.onDeepBlue,
+                ),
+                onPressed: () {
+                  final email = _emailController.text.trim();
+                  final pass = _passController.text.trim();
+
+                  if (_selectedRole == UserRole.docente) {
+                    if (email != 'admin' || pass != '1234') {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Credenciales de administrador incorrectas')),
+                      );
+                      return;
+                    }
+                  }
+
+                  Navigator.pushReplacementNamed(
+                    context,
+                    DashboardScreen.routeName,
+                    arguments: {'isDocente': _selectedRole == UserRole.docente},
+                  );
+                },
+                child: const Text('Iniciar sesión'),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+// ====== Archivo: lib/screens/dashboard_screen.dart ======
+// lib/screens/dashboard_screen.dart
+import 'package:flutter/material.dart';
+import '../app_colors.dart';
+import 'camera_screen.dart';
+import 'enrollment_screen.dart';
+import 'login_screen.dart';
+import 'schedules_screen.dart';
+import '../services/load_orchestrator_service.dart';
+
+class DashboardScreen extends StatelessWidget {
+  static const String routeName = '/dashboard';
+
+  const DashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final args = (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ?? {};
+    final bool isDocente = args['isDocente'] == true;
+    
+    final String actorLabel = isDocente ? 'Docente activo' : 'Alumno activo';
+    final String actorName = isDocente
+        ? 'Dra. Lizbeth Geraldine Ibarra'
+        : 'Héctor Kaleb Martínez';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                LoginScreen.routeName,
+                (route) => false,
+              );
+            },
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Cerrar sesión',
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 1. Simulación de validación de IP Móvil
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.successGreen,
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Conectado a Red Móvil (IP Validada)',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            ValueListenableBuilder<OrchestrationMode>(
+              valueListenable: LoadOrchestratorService.instance.mode,
+              builder: (context, currentMode, _) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Modo de Orquestación", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    SegmentedButton<OrchestrationMode>(
+                      segments: const [
+                        ButtonSegment(value: OrchestrationMode.auto, label: Text('Auto'), icon: Icon(Icons.settings_input_component)),
+                        ButtonSegment(value: OrchestrationMode.forceEdge, label: Text('Edge'), icon: Icon(Icons.memory)),
+                        ButtonSegment(value: OrchestrationMode.forceCloud, label: Text('Cloud'), icon: Icon(Icons.cloud)),
+                      ],
+                      selected: {currentMode},
+                      onSelectionChanged: (Set<OrchestrationMode> newSelection) {
+                        LoadOrchestratorService.instance.mode.value = newSelection.first;
+                      },
+                    ),
+                  ],
+                );
+              },
+            ),
+
+            // Tarjeta de perfil
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.deepBlue.withAlpha((0.15 * 255).toInt()),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    actorLabel,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    actorName,
+                    style: const TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  if (!isDocente) ...[
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Matrícula: TIC-320042',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // 2. Botón Asistencia (Habilitado para Alumno, Deshabilitado para Docente)
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.deepBlue,
+                foregroundColor: AppColors.onDeepBlue,
+              ),
+              onPressed: isDocente 
+                  ? null 
+                  : () => Navigator.pushNamed(
+                context,
+                CameraScreen.routeName,
+                arguments: {'mode': 'attendance', 'name': actorName, 'matricula': 'TIC-320042'},
+              ),
+              icon: const Icon(Icons.camera_alt_rounded),
+              label: const Text('Registrar Asistencia'),
+            ),
+            const SizedBox(height: 12),
+            
+            // 3. Botón Registro (Habilitado para Docente, Deshabilitado para Alumno)
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.deepBlue,
+                foregroundColor: AppColors.onDeepBlue,
+              ),
+              onPressed: isDocente
+                  ? () => Navigator.pushNamed(context, EnrollmentScreen.routeName)
+                  : null,
+              icon: const Icon(Icons.person_add_alt_1_rounded),
+              label: const Text('Registrar Nuevo Alumno'),
+            ),
+            const SizedBox(height: 12),
+            
+            // 4. Botón Gestión (Habilitado para Docente, Deshabilitado para Alumno)
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.successGreen,
+                foregroundColor: AppColors.onSuccessGreen,
+              ),
+              onPressed: isDocente
+                  ? () => Navigator.pushNamed(context, SchedulesScreen.routeName)
+                  : null,
+              icon: const Icon(Icons.schedule_rounded),
+              label: const Text('Gestión de Horarios (Docente)'),
+            ),
+            
+            if (!isDocente) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Activa perfil Docente en login para habilitar Gestión y Registro.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ====== Archivo: lib/screens/camera_screen.dart ======
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:camera/camera.dart';
+import '../app_colors.dart';
+import '../services/image_processor.dart';
+import '../services/load_orchestrator_service.dart';
+import 'success_screen.dart';
+
+class CameraScreen extends StatefulWidget {
+  static const String routeName = '/camera';
+
+  const CameraScreen({super.key});
+
+  @override
+  State<CameraScreen> createState() => _CameraScreenState();
+}
+
+class _CameraScreenState extends State<CameraScreen> {
+  CameraController? _cameraController;
+  bool _cameraReady = false;
+  String? _cameraError;
+  bool _showBoundingBox = false;
+  bool _isProcessing = false;
+  Color _boxColor = AppColors.successGreen;
+
+  @override
+  void initState() {
+    super.initState();
+    _initCamera();
+  }
+
+  String _getLoadingText() {
+    final mode = LoadOrchestratorService.instance.mode.value;
+    switch (mode) {
+      case OrchestrationMode.forceEdge:
+        return 'Procesando en NPU Local...';
+      case OrchestrationMode.forceCloud:
+        return 'Conectando al Servidor...';
+      default:
+        return 'Orquestando inferencia...';
+    }
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        setState(() {
+          _cameraError = 'No se detecto ninguna camara disponible.';
+        });
+        return;
+      }
+      final frontCam = cameras.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.front,
+        orElse: () => cameras.first,
+      );
+      final controller = CameraController(
+        frontCam,
+        ResolutionPreset.high,
+        enableAudio: false,
+      );
+      await controller.initialize();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      setState(() {
+        _cameraController = controller;
+        _cameraReady = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _cameraError = 'No fue posible iniciar la camara.';
+      });
+    }
+  }
+
+  Future<void> _simulateCaptureFlow() async {
+    if (_isProcessing || !_cameraReady) return;
+    final args =
+        (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ??
+            {};
+    final String mode = (args['mode'] as String?) ?? 'attendance';
+    final bool isEnrollment = mode == 'enrollment';
+    final String enrollmentName = args['name'] as String? ?? 'Desconocido';
+    final String matricula = args['matricula'] as String? ?? 'TIC-000000';
+
+    setState(() {
+      _showBoundingBox = true;
+      _isProcessing = true;
+    });
+
+    try {
+      // 1. Capturar imagen
+      final XFile image = await _cameraController!.takePicture();
+
+      // 2. Leer bytes y corregir orientación en Isolate usando ImageProcessor
+      final Uint8List fileBytes = await File(image.path).readAsBytes();
+      final Uint8List processedBytes = await ImageProcessor.instance.fixOrientation(fileBytes);
+
+      // 3. Enviar a Orquestador (Edge vs Cloud)
+      final orchestration = await LoadOrchestratorService.instance.processFace(
+        processedBytes,
+        isEnrollment: isEnrollment,
+        name: enrollmentName,
+      );
+
+      setState(() {
+        _boxColor = orchestration.result.match ? AppColors.successGreen : Colors.redAccent;
+      });
+
+      // Pequeña pausa para mostrar badge/feedback
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      if (!mounted) return;
+
+      // FIX: Pasar el objeto result completo y la latencia
+      if (orchestration.result.status == 'error') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error: ${orchestration.result.message}')),
+        );
+      } else {
+        Navigator.pushReplacementNamed(
+          context,
+          SuccessScreen.routeName,
+          arguments: {
+            'result': orchestration.result, // OBJETO CRÍTICO
+            'mode': orchestration.mode,
+            'latency': orchestration.latencyMs,
+            'matricula': matricula,
+          },
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _showBoundingBox = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final args =
+        (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ??
+            {};
+    final String mode = (args['mode'] as String?) ?? 'attendance';
+    final bool isEnrollment = mode == 'enrollment';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          isEnrollment ? 'Enrolamiento Biometrico' : 'Registro de Asistencia',
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppColors.deepBlue.withAlpha((0.25 * 255).toInt()),
+                  ),
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.all(14),
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: _buildCameraLayer(),
+                    ),
+                    // Overlay circular de alineacion.
+                    IgnorePointer(
+                      child: Container(
+                        width: 260,
+                        height: 260,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.deepBlue,
+                            width: 3,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 18,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.deepBlue,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'Alinee el rostro en el circulo',
+                          style: TextStyle(
+                            color: AppColors.onDeepBlue,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_showBoundingBox)
+                      Container(
+                        width: 170,
+                        height: 210,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: _boxColor,
+                            width: 3,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    if (_isProcessing)
+                      Container(
+                        color: Colors.black45,
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const CircularProgressIndicator(
+                                  color: AppColors.deepBlue,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _getLoadingText(),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  isEnrollment
+                                      ? 'Generando Face Chips (112x112)'
+                                      : 'Comparando embeddings en servidor',
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.deepBlue,
+                foregroundColor: AppColors.onDeepBlue,
+              ),
+              onPressed: (_isProcessing || !_cameraReady)
+                  ? null
+                  : _simulateCaptureFlow,
+              icon: const Icon(Icons.camera_alt_rounded),
+              label: Text(isEnrollment ? 'Capturar Rafaga' : 'Capturar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCameraLayer() {
+    if (_cameraError != null) {
+      return Center(
+        child: Text(
+          _cameraError!,
+          style: const TextStyle(color: AppColors.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+    if (!_cameraReady || _cameraController == null) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.deepBlue),
+      );
+    }
+    return CameraPreview(_cameraController!);
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    super.dispose();
+  }
+}
+
+// ====== Archivo: lib/services/load_orchestrator_service.dart ======
+import 'dart:math';
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import '../models/recognition_result.dart';
+import 'api_client.dart';
+import 'image_processor.dart';
+
+enum OrchestrationMode { auto, forceEdge, forceCloud }
+enum InferenceMode { edge, cloud }
+
+class OrchestratorResult {
+  final InferenceMode mode;
+  final int latencyMs;
+  final RecognitionResult result;
+
+  OrchestratorResult({required this.mode, required this.latencyMs, required this.result});
+}
+
+class LoadOrchestratorService {
+  LoadOrchestratorService._();
+  static final LoadOrchestratorService instance = LoadOrchestratorService._();
+  
+  // Selector de modo global
+  final ValueNotifier<OrchestrationMode> mode = ValueNotifier<OrchestrationMode>(OrchestrationMode.auto);
+  final Random _random = Random();
+
+  Future<OrchestratorResult> processFace(Uint8List imageBytes, {required bool isEnrollment, String? name}) async {
+    Uint8List processedBytes;
+    try {
+      processedBytes = await ImageProcessor.instance.fixOrientation(imageBytes);
+    } catch (e) {
+      processedBytes = imageBytes;
+    }
+
+    final stopwatch = Stopwatch()..start();
+
+    // 1. MODO FORCE EDGE: Inferencia Local Inmediata
+    if (mode.value == OrchestrationMode.forceEdge) {
+      await Future.delayed(const Duration(milliseconds: 250));
+      return _generateMockResult(name, isEnrollment, 250, InferenceMode.edge);
+    }
+
+    // 2. MODO FORCE CLOUD: Salta el ping e intenta API directamente
+    if (mode.value == OrchestrationMode.forceCloud) {
+      final res = await _callApi(processedBytes, isEnrollment, name);
+      stopwatch.stop();
+      return OrchestratorResult(mode: InferenceMode.cloud, latencyMs: stopwatch.elapsedMilliseconds, result: res);
+    }
+
+    // 3. MODO AUTO: Lógica de orquestación por latencia
+    final isOnline = await ApiClient.instance.checkStatus(timeout: const Duration(milliseconds: 800));
+    if (!isOnline) {
+      return _generateMockResult(name, isEnrollment, stopwatch.elapsedMilliseconds, InferenceMode.edge);
+    }
+
+    final res = await _callApi(processedBytes, isEnrollment, name);
+    stopwatch.stop();
+    return OrchestratorResult(mode: InferenceMode.cloud, latencyMs: stopwatch.elapsedMilliseconds, result: res);
+  }
+
+  Future<RecognitionResult> _callApi(Uint8List bytes, bool isEnroll, String? name) async {
+    if (isEnroll) return await ApiClient.instance.sendRegister(bytes, name ?? 'Desconocido');
+    return await ApiClient.instance.sendImageForAssistance(bytes);
+  }
+
+  OrchestratorResult _generateMockResult(String? name, bool isEnroll, int lat, InferenceMode m) {
+    final now = DateTime.now();
+    final isRetardo = now.hour > 10 || (now.hour == 10 && now.minute > 15);
+    return OrchestratorResult(
+      mode: m,
+      latencyMs: lat,
+      result: RecognitionResult(
+        status: 'ok',
+        match: true,
+        label: name ?? 'Alumno Demo',
+        confidence: 0.85 + (_random.nextDouble() * 0.12),
+        message: isEnroll ? 'Enrolado' : (isRetardo ? 'Retardo' : 'Presente'),
+      ),
+    );
+  }
+}
+
+
