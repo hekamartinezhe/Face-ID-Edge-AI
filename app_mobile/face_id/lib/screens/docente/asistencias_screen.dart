@@ -127,7 +127,7 @@ class _AsistenciasScreenState extends State<AsistenciasScreen> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withAlpha((0.05 * 255).toInt()),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -219,7 +219,7 @@ class _AsistenciasScreenState extends State<AsistenciasScreen> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withAlpha((0.1 * 255).toInt()),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: color, size: 24),
@@ -266,7 +266,7 @@ class _AsistenciasScreenState extends State<AsistenciasScreen> {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: estadoColor.withOpacity(0.1),
+            color: estadoColor.withAlpha((0.1 * 255).toInt()),
             shape: BoxShape.circle,
           ),
           child: Icon(estadoIcon, color: estadoColor),
@@ -313,7 +313,7 @@ class _AsistenciasScreenState extends State<AsistenciasScreen> {
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: estadoColor.withOpacity(0.1),
+            color: estadoColor.withAlpha((0.1 * 255).toInt()),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(

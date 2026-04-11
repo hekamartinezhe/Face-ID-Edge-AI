@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
@@ -77,9 +78,8 @@ class _AlumnoDashboardScreenState extends State<AlumnoDashboardScreen> {
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
               await _auth.logout();
-              if (mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-              }
+              if (!mounted) return;
+              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
             },
           ),
         ],
@@ -169,7 +169,7 @@ class _AlumnoDashboardScreenState extends State<AlumnoDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: estadoColor.withOpacity(0.1),
+                    color: estadoColor.withAlpha((0.1 * 255).toInt()),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: estadoColor),
                   ),

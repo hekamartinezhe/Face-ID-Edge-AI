@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
@@ -54,9 +55,8 @@ class _DocenteDashboardScreenState extends State<DocenteDashboardScreen> {
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
               await _auth.logout();
-              if (mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-              }
+              if (!mounted) return;
+              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
             },
           ),
         ],
@@ -66,8 +66,8 @@ class _DocenteDashboardScreenState extends State<DocenteDashboardScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+                  BoxShadow(
+                    color: Colors.black.withAlpha((0.1 * 255).toInt()),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
@@ -142,8 +142,8 @@ class _DocenteDashboardScreenState extends State<DocenteDashboardScreen> {
               ),
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF1E3799).withOpacity(0.3),
+                      BoxShadow(
+                        color: const Color(0xFF1E3799).withAlpha((0.3 * 255).toInt()),
                   blurRadius: 15,
                   offset: const Offset(0, 8),
                 ),
@@ -316,8 +316,8 @@ class _DocenteDashboardScreenState extends State<DocenteDashboardScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.1),
+                BoxShadow(
+                  color: color.withAlpha((0.1 * 255).toInt()),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -329,7 +329,7 @@ class _DocenteDashboardScreenState extends State<DocenteDashboardScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withAlpha((0.1 * 255).toInt()),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color, size: 28),
@@ -399,7 +399,7 @@ class _DocenteDashboardScreenState extends State<DocenteDashboardScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withAlpha((0.1 * 255).toInt()),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(

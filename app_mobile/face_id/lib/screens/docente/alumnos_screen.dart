@@ -268,8 +268,8 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: isRegistrado
-                          ? Colors.green.withOpacity(0.1)
-                          : Colors.orange.withOpacity(0.1),
+                          ? Colors.green.withAlpha((0.1 * 255).toInt())
+                                    : Colors.orange.withAlpha((0.1 * 255).toInt()),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(

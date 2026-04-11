@@ -1,6 +1,6 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
-import 'dashboard_screen.dart';
 import 'camera_screen.dart';
 
 enum UserRole { alumno, docente }

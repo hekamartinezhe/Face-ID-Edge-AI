@@ -1,42 +1,6 @@
-==== pubspec.yaml ====
-name: face_id
-description: "A new Flutter project."
-publish_to: 'none'
 
-version: 1.0.0+1
+// ====== Archivo: lib/models/user_model.dart ======
 
-environment:
-  sdk: ^3.10.7
-
-dependencies:
-  flutter:
-    sdk: flutter
-
-  cupertino_icons: ^1.0.8
-  
-  # Gestión de cámara
-  camera: ^0.12.0
-  tflite_flutter: ^0.12.1
-  # Detección de rostros
-  google_mlkit_face_detection: ^0.13.2
-  image: ^4.2.0
-  # Manejo de rutas y archivos
-  path_provider: ^2.1.1
-  path: ^1.8.3
-  
-  # Comunicación con la API
-  http: ^1.1.0
-  shared_preferences: ^2.5.4
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^6.0.0
-
-flutter:
-  uses-material-design: true
-  # Aquí agregarás los assets del modelo de IA más adelante
-==== lib/models/user_model.dart ====
 enum UserRole { alumno, docente }
 
 class UserModel {
@@ -77,7 +41,8 @@ class UserModel {
       };
 }
 
-==== lib/models/recognition_result.dart ====
+// ====== Archivo: lib/models/recognition_result.dart ======
+
 class RecognitionResult {
   final String status;
   final bool match;
@@ -114,7 +79,8 @@ class RecognitionResult {
       };
 }
 
-==== lib/screens/alumno/alumno_dashboard_screen.dart ====
+// ====== Archivo: lib/screens/alumno/alumno_dashboard_screen.dart ======
+
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
@@ -520,7 +486,8 @@ class _AlumnoDashboardScreenState extends State<AlumnoDashboardScreen> {
     );
   }
 }
-==== lib/screens/alumno/tomar_asistencia_screen.dart ====
+// ====== Archivo: lib/screens/alumno/tomar_asistencia_screen.dart ======
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:camera/camera.dart';
@@ -1097,7 +1064,8 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
     super.dispose();
   }
 }
-==== lib/screens/docente/alumnos_screen.dart ====
+// ====== Archivo: lib/screens/docente/alumnos_screen.dart ======
+
 import 'package:flutter/material.dart';
 
 /// Lista de Alumnos - Figura 26
@@ -1562,7 +1530,8 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
     super.dispose();
   }
 }
-==== lib/screens/docente/asistencias_screen.dart ====
+// ====== Archivo: lib/screens/docente/asistencias_screen.dart ======
+
 import 'package:flutter/material.dart';
 
 /// Control de Asistencias - Figura 27
@@ -2011,7 +1980,8 @@ class _AsistenciasScreenState extends State<AsistenciasScreen> {
     );
   }
 }
-==== lib/screens/docente/docente_dashboard_screen.dart ====
+// ====== Archivo: lib/screens/docente/docente_dashboard_screen.dart ======
+
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
@@ -2438,7 +2408,8 @@ class _DocenteDashboardScreenState extends State<DocenteDashboardScreen> {
     return '${now.day} ${meses[now.month - 1]}';
   }
 }
-==== lib/screens/camara_screen.dart ====
+// ====== Archivo: lib/screens/camara_screen.dart ======
+
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
@@ -3181,10 +3152,16 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
     super.dispose();
   }
 }
-==== lib/screens/camera_screen.dart ====
+// ====== Archivo: lib/screens/camera_screen.dart ======
+
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import '../app_colors.dart';
+import '../services/image_processor.dart';
+import '../services/load_orchestrator_service.dart';
 import 'success_screen.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -3203,6 +3180,7 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _showBoundingBox = false;
   bool _isProcessing = false;
   Color _boxColor = AppColors.successGreen;
+  OrchestratorResult? _lastResult;
 
   @override
   void initState() {
@@ -3252,40 +3230,71 @@ class _CameraScreenState extends State<CameraScreen> {
             {};
     final String mode = (args['mode'] as String?) ?? 'attendance';
     final bool isEnrollment = mode == 'enrollment';
-    final now = TimeOfDay.now();
-    final bool isRetardo = !isEnrollment && now.minute > 10;
+    final String enrollmentName = args['name'] as String? ?? 'Desconocido';
+    final String matricula = args['matricula'] as String? ?? 'TIC-000000';
 
     setState(() {
       _showBoundingBox = true;
-      _boxColor = isRetardo ? const Color(0xFFF2C94C) : AppColors.successGreen;
-    });
-
-    await Future.delayed(const Duration(milliseconds: 700));
-
-    if (!mounted) return;
-    setState(() {
       _isProcessing = true;
+      _lastResult = null;
     });
 
-    // Simula procesamiento asíncrono edge.
-    await Future.delayed(const Duration(milliseconds: 1500));
+    try {
+      // 1. Capturar imagen
+      final XFile image = await _cameraController!.takePicture();
 
-    if (!mounted) return;
-    Navigator.pushNamed(
-      context,
-      SuccessScreen.routeName,
-      arguments: {
-        'mode': mode,
-        'status': isRetardo ? 'Retardo' : 'Presente',
-        'name': (args['name'] as String?) ?? 'Hector Kaleb Martinez Hernandez',
-        'matricula': (args['matricula'] as String?) ?? 'TIC-320042',
-      },
-    );
+      // 2. Leer bytes y corregir orientación en Isolate usando ImageProcessor
+      final Uint8List fileBytes = await File(image.path).readAsBytes();
+      final Uint8List processedBytes = await ImageProcessor.instance.fixOrientation(fileBytes);
 
-    setState(() {
-      _isProcessing = false;
-      _showBoundingBox = false;
-    });
+      // 3. Enviar a Orquestador (Edge vs Cloud)
+      final orchestration = await LoadOrchestratorService.instance.processFace(
+        processedBytes,
+        isEnrollment: isEnrollment,
+        name: enrollmentName,
+      );
+
+      setState(() {
+        _lastResult = orchestration;
+        _boxColor = orchestration.result.match ? AppColors.successGreen : Colors.redAccent;
+      });
+
+      // Pequeña pausa para mostrar badge/feedback
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      if (!mounted) return;
+
+      if (orchestration.result.status == 'error' || !orchestration.result.match) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ ${orchestration.result.message ?? "Rostro desconocido"}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      } else {
+        final now = TimeOfDay.now();
+        final bool isRetardo = !isEnrollment && now.minute > 15;
+        Navigator.pushReplacementNamed(
+          context,
+          SuccessScreen.routeName,
+          arguments: {
+            'mode': mode,
+            'status': isEnrollment ? 'Enrolado' : (isRetardo ? 'Retardo' : 'Presente'),
+            'name': orchestration.result.label ?? enrollmentName,
+            'matricula': matricula,
+          },
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _showBoundingBox = false;
+        });
+      }
+    }
   }
 
   @override
@@ -3456,7 +3465,8 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 }
 
-==== lib/screens/dashboard_screen.dart ====
+// ====== Archivo: lib/screens/dashboard_screen.dart ======
+
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import 'camera_screen.dart';
@@ -3624,7 +3634,8 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-==== lib/screens/enrollment_screen.dart ====
+// ====== Archivo: lib/screens/enrollment_screen.dart ======
+
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import 'camera_screen.dart';
@@ -3753,10 +3764,12 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
   }
 }
 
-==== lib/screens/login_screen.dart ====
+// ====== Archivo: lib/screens/login_screen.dart ======
+
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import 'dashboard_screen.dart';
+import 'camera_screen.dart';
 
 enum UserRole { alumno, docente }
 
@@ -3877,11 +3890,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   foregroundColor: AppColors.onDeepBlue,
                 ),
                 onPressed: () {
+                  final String name = _selectedRole == UserRole.docente
+                      ? 'Dra. Lizbeth Geraldine Ibarra'
+                      : 'Héctor Kaleb Martínez';
+                  final String matricula = _selectedRole == UserRole.docente ? 'DOC-0001' : 'TIC-320042';
+
                   Navigator.pushReplacementNamed(
                     context,
-                    DashboardScreen.routeName,
+                    CameraScreen.routeName,
                     arguments: {
-                      'isDocente': _selectedRole == UserRole.docente,
+                      'mode': 'attendance',
+                      'name': name,
+                      'matricula': matricula,
                     },
                   );
                 },
@@ -3895,7 +3915,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-==== lib/screens/schedules_screen.dart ====
+// ====== Archivo: lib/screens/schedules_screen.dart ======
+
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 
@@ -4100,7 +4121,8 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
   }
 }
 
-==== lib/screens/success_screen.dart ====
+// ====== Archivo: lib/screens/success_screen.dart ======
+
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import 'camera_screen.dart';
@@ -4229,7 +4251,8 @@ class SuccessScreen extends StatelessWidget {
   }
 }
 
-==== lib/screens/tomar_asistencia_screen.dart ====
+// ====== Archivo: lib/screens/tomar_asistencia_screen.dart ======
+
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
@@ -4458,7 +4481,8 @@ class ErrorScreen extends StatelessWidget {
     );
   }
 }
-==== lib/services/auth_service.dart ====
+// ====== Archivo: lib/services/auth_service.dart ======
+
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
@@ -4490,7 +4514,8 @@ class AuthService {
   }
 }
 
-==== lib/services/local_storage_service.dart ====
+// ====== Archivo: lib/services/local_storage_service.dart ======
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -4545,7 +4570,8 @@ class LocalStorageService {
   }
 }
 
-==== lib/services/recognition_service.dart ====
+// ====== Archivo: lib/services/recognition_service.dart ======
+
 import 'dart:math';
 
 import '../models/user_model.dart';
@@ -4640,7 +4666,8 @@ class RecognitionService {
   }
 }
 
-==== lib/services/api_client.dart ====
+// ====== Archivo: lib/services/api_client.dart ======
+
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -4795,7 +4822,274 @@ class ApiClient {
   }
 }
 
-==== lib/app_colors.dart ====
+// ====== Archivo: lib/services/image_processor.dart ======
+
+import 'dart:typed_data';
+import 'dart:math';
+import 'dart:typed_data' as u;
+import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as img;
+
+/// ImageProcessor
+/// - Ejecuta la corrección de orientación EXIF en un Isolate usando `compute`.
+/// - Entrada: `Uint8List` con bytes de la imagen (JPEG/PNG).
+/// - Salida: `Uint8List` listo para enviar al backend.
+class ImageProcessor {
+  ImageProcessor._();
+  static final ImageProcessor instance = ImageProcessor._();
+
+  /// Corrige la orientación basándose en la etiqueta EXIF y re-encodea la imagen.
+  /// Se ejecuta en un Isolate para no bloquear la UI (recomendado para S23 Ultra).
+  Future<Uint8List> fixOrientation(Uint8List bytes, {int quality = 90}) async {
+    final result = await compute(_isolateProcessImage, <String, dynamic>{
+      'bytes': bytes,
+      'quality': quality,
+    });
+
+    return result as Uint8List;
+  }
+}
+
+// Top-level isolate entrypoint (necesario para `compute`).
+Uint8List _isolateProcessImage(Map<String, dynamic> params) {
+  final Uint8List bytes = params['bytes'] as Uint8List;
+  final int quality = params['quality'] as int? ?? 90;
+
+  try {
+    // Decode image using package:image
+    final img.Image? image = img.decodeImage(bytes);
+    if (image == null) return bytes;
+
+    // Leer orientación EXIF (1 = default)
+    final int orientation = _readExifOrientation(bytes);
+
+    img.Image oriented = image;
+
+    switch (orientation) {
+      case 3:
+        oriented = img.copyRotate(image, 180);
+        break;
+      case 6:
+        oriented = img.copyRotate(image, 90);
+        break;
+      case 8:
+        oriented = img.copyRotate(image, -90);
+        break;
+      default:
+        // 1 or unknown -> no-op
+        break;
+    }
+
+    // Re-encode as JPEG (compatible con ApiClient MultipartFile)
+    final List<int> encoded = img.encodeJpg(oriented, quality: quality);
+    return Uint8List.fromList(encoded);
+  } catch (e) {
+    // En caso de error, devolver bytes originales para no bloquear flujo.
+    return bytes;
+  }
+}
+
+/// Parser EXIF mínimo para obtener la etiqueta Orientation (0x0112).
+/// Retorna 1 si no encuentra la etiqueta o en caso de error.
+int _readExifOrientation(Uint8List bytes) {
+  try {
+    final int len = bytes.length;
+    if (len < 4) return 1;
+
+    // JPEG SOI
+    if (bytes[0] != 0xFF || bytes[1] != 0xD8) return 1;
+
+    int offset = 2;
+
+    while (offset + 4 < len) {
+      if (bytes[offset] != 0xFF) {
+        offset++;
+        continue;
+      }
+
+      final int marker = bytes[offset + 1];
+
+      // APP1 marker (EXIF)
+      if (marker == 0xE1) {
+        final int size = (bytes[offset + 2] << 8) + bytes[offset + 3];
+        if (size < 8) return 1;
+
+        final int headerStart = offset + 4;
+        if (headerStart + 5 < len) {
+          // "Exif\0\0"
+          if (bytes[headerStart] == 0x45 &&
+              bytes[headerStart + 1] == 0x78 &&
+              bytes[headerStart + 2] == 0x69 &&
+              bytes[headerStart + 3] == 0x66 &&
+              bytes[headerStart + 4] == 0x00 &&
+              bytes[headerStart + 5] == 0x00) {
+
+            final int tiffStart = headerStart + 6;
+            if (tiffStart + 8 >= len) return 1;
+
+            final u.ByteData bd = bytes.buffer.asByteData();
+
+            // Endianness
+            final int byteOrder = bd.getUint16(tiffStart, Endian.big);
+            final Endian endian = (bytes[tiffStart] == 0x49 && bytes[tiffStart + 1] == 0x49)
+                ? Endian.little
+                : Endian.big;
+
+            final int fixed = bd.getUint16(tiffStart + 2, endian);
+            if (fixed != 0x002A) return 1;
+
+            final int ifdOffset = bd.getUint32(tiffStart + 4, endian);
+            final int ifd0 = tiffStart + ifdOffset;
+            if (ifd0 + 2 >= len) return 1;
+
+            final int numEntries = bd.getUint16(ifd0, endian);
+            for (int i = 0; i < numEntries; i++) {
+              final int entryOffset = ifd0 + 2 + i * 12;
+              if (entryOffset + 12 > len) break;
+
+              final int tag = bd.getUint16(entryOffset, endian);
+              if (tag == 0x0112) {
+                final int type = bd.getUint16(entryOffset + 2, endian);
+                final int count = bd.getUint32(entryOffset + 4, endian);
+
+                // If value fits in 4 bytes, it's stored inline
+                if (type == 3 && count == 1) {
+                  final int value = bd.getUint16(entryOffset + 8, endian);
+                  return value;
+                } else {
+                  final int valueOffset = bd.getUint32(entryOffset + 8, endian);
+                  final int actual = tiffStart + valueOffset;
+                  if (actual + 2 <= len) {
+                    final int value = bd.getUint16(actual, endian);
+                    return value;
+                  }
+                }
+              }
+            }
+            return 1;
+          }
+        }
+        offset += 2 + size;
+      } else {
+        // Other marker, skip
+        if (offset + 2 >= len) break;
+        final int size = (bytes[offset + 2] << 8) + bytes[offset + 3];
+        offset += 2 + size;
+      }
+    }
+  } catch (e) {
+    return 1;
+  }
+
+  return 1;
+}
+
+// ====== Archivo: lib/services/load_orchestrator_service.dart ======
+
+import 'dart:math';
+import 'dart:typed_data';
+import '../models/recognition_result.dart';
+import 'api_client.dart';
+import 'image_processor.dart';
+
+enum InferenceMode { edge, cloud }
+
+class OrchestratorResult {
+  final InferenceMode mode;
+  final int latencyMs;
+  final RecognitionResult result;
+
+  OrchestratorResult({
+    required this.mode,
+    required this.latencyMs,
+    required this.result,
+  });
+}
+
+/// Orquestador de Carga Híbrida (Edge AI vs Cloud AI)
+/// Simula la decisión de enrutamiento basada en latencia de red.
+class LoadOrchestratorService {
+  LoadOrchestratorService._();
+  static final LoadOrchestratorService instance = LoadOrchestratorService._();
+
+  final Random _random = Random();
+
+  Future<OrchestratorResult> processFace(Uint8List imageBytes, {required bool isEnrollment, String? name}) async {
+    // 0. Corregir orientación en un Isolate antes de cualquier medición/envío
+    Uint8List processedBytes;
+    try {
+      processedBytes = await ImageProcessor.instance.fixOrientation(imageBytes);
+    } catch (e) {
+      // Si falla el procesado, continuar con los bytes originales
+      processedBytes = imageBytes;
+    }
+
+    // 1. Medir latencia simulada de red hacia la API
+    final stopwatch = Stopwatch()..start();
+    final isOnline = await ApiClient.instance.checkStatus(timeout: const Duration(milliseconds: 800));
+    stopwatch.stop();
+    
+    // Simular un "ping" de red
+    final int networkPing = isOnline ? stopwatch.elapsedMilliseconds + _random.nextInt(50) : 999;
+
+    InferenceMode selectedMode;
+    RecognitionResult finalResult;
+    int finalLatency;
+
+    // 2. Lógica de Orquestación: Si el ping es alto (>100ms) o está offline -> EDGE (Hexagon NPU simulado)
+    if (!isOnline || networkPing > 100) {
+      selectedMode = InferenceMode.edge;
+      
+      // Simular latencia de inferencia local en NPU (15ms - 40ms)
+      finalLatency = 15 + _random.nextInt(25);
+      await Future.delayed(Duration(milliseconds: finalLatency));
+
+      // Simular resultado procesado localmente
+      if (isEnrollment) {
+        finalResult = RecognitionResult(
+          status: 'ok', 
+          match: true, 
+          label: name, 
+          message: 'Enrolado en Edge'
+        );
+      } else {
+        // Fallback demo: Asumir match local para mantener la fluidez de la exposición
+        finalResult = RecognitionResult(
+          status: 'ok', 
+          match: true, 
+          label: 'Usuario Local', 
+          confidence: 0.92, 
+          message: 'Edge Fallback'
+        );
+      }
+    } 
+    // 3. Si la red es estable y rápida -> CLOUD (RTX 5060 Ti)
+    else {
+      selectedMode = InferenceMode.cloud;
+      
+      final cloudStopwatch = Stopwatch()..start();
+      
+      if (isEnrollment) {
+        finalResult = await ApiClient.instance.sendRegister(processedBytes, name ?? 'Desconocido');
+      } else {
+        finalResult = await ApiClient.instance.sendImageForAssistance(processedBytes);
+      }
+      
+      cloudStopwatch.stop();
+      // Latencia total: Ping de red + Procesamiento en RTX
+      finalLatency = networkPing + cloudStopwatch.elapsedMilliseconds;
+    }
+
+    return OrchestratorResult(
+      mode: selectedMode,
+      latencyMs: finalLatency,
+      result: finalResult,
+    );
+  }
+}
+
+// ====== Archivo: lib/app_colors.dart ======
+
 import 'package:flutter/material.dart';
 
 class AppColors {
@@ -4813,7 +5107,8 @@ class AppColors {
   static const Color onSuccessGreen = Colors.white;
 }
 
-==== lib/main.dart ====
+// ====== Archivo: lib/main.dart ======
+
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'screens/camera_screen.dart';

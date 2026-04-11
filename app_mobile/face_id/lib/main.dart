@@ -37,7 +37,6 @@ class FaceIDApp extends StatelessWidget {
           primary: AppColors.deepBlue,
           secondary: AppColors.successGreen,
           surface: AppColors.surface,
-          background: AppColors.background,
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: AppColors.deepBlue,

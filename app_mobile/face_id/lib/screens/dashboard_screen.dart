@@ -1,3 +1,4 @@
+// lib/screens/dashboard_screen.dart
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import 'camera_screen.dart';
@@ -12,14 +13,13 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final args =
-        (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ??
-            {};
+    final args = (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ?? {};
     final bool isDocente = args['isDocente'] == true;
+    
     final String actorLabel = isDocente ? 'Docente activo' : 'Alumno activo';
     final String actorName = isDocente
-        ? 'Lizbeth Geraldine Ibarra Carlos'
-        : 'Hector Kaleb Martinez Hernandez';
+        ? 'Dra. Lizbeth Geraldine Ibarra'
+        : 'Héctor Kaleb Martínez';
 
     return Scaffold(
       appBar: AppBar(
@@ -34,7 +34,7 @@ class DashboardScreen extends StatelessWidget {
               );
             },
             icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Cerrar sesion',
+            tooltip: 'Cerrar sesión',
           ),
         ],
       ),
@@ -43,6 +43,7 @@ class DashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // 1. Simulación de validación de IP Móvil
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -58,7 +59,7 @@ class DashboardScreen extends StatelessWidget {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Conectado a Red Universitaria (IP Validada)',
+                      'Conectado a Red Móvil (IP Validada)',
                       style: TextStyle(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.w600,
@@ -69,13 +70,15 @@ class DashboardScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+            
+            // Tarjeta de perfil
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: AppColors.deepBlue.withOpacity(0.15),
+                  color: AppColors.deepBlue.withAlpha((0.15 * 255).toInt()),
                 ),
               ),
               child: Column(
@@ -100,7 +103,7 @@ class DashboardScreen extends StatelessWidget {
                   if (!isDocente) ...[
                     const SizedBox(height: 6),
                     const Text(
-                      'Matricula: TIC-320042',
+                      'Matrícula: TIC-320042',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                       ),
@@ -110,20 +113,26 @@ class DashboardScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
+            
+            // 2. Botón Asistencia (Habilitado para Alumno, Deshabilitado para Docente)
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.deepBlue,
                 foregroundColor: AppColors.onDeepBlue,
               ),
-              onPressed: () => Navigator.pushNamed(
+              onPressed: isDocente 
+                  ? null 
+                  : () => Navigator.pushNamed(
                 context,
                 CameraScreen.routeName,
-                arguments: {'mode': 'attendance'},
+                arguments: {'mode': 'attendance', 'name': actorName, 'matricula': 'TIC-320042'},
               ),
               icon: const Icon(Icons.camera_alt_rounded),
               label: const Text('Registrar Asistencia'),
             ),
             const SizedBox(height: 12),
+            
+            // 3. Botón Registro (Habilitado para Docente, Deshabilitado para Alumno)
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.deepBlue,
@@ -136,6 +145,8 @@ class DashboardScreen extends StatelessWidget {
               label: const Text('Registrar Nuevo Alumno'),
             ),
             const SizedBox(height: 12),
+            
+            // 4. Botón Gestión (Habilitado para Docente, Deshabilitado para Alumno)
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.successGreen,
@@ -145,12 +156,13 @@ class DashboardScreen extends StatelessWidget {
                   ? () => Navigator.pushNamed(context, SchedulesScreen.routeName)
                   : null,
               icon: const Icon(Icons.schedule_rounded),
-              label: const Text('Gestion de Horarios (Docente)'),
+              label: const Text('Gestión de Horarios (Docente)'),
             ),
+            
             if (!isDocente) ...[
               const SizedBox(height: 8),
               const Text(
-                'Activa perfil Docente en login para habilitar Gestion.',
+                'Activa perfil Docente en login para habilitar Gestión y Registro.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppColors.textSecondary,

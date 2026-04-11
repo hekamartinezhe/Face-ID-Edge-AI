@@ -168,7 +168,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.deepBlue.withOpacity(0.12)),
+        border: Border.all(color: AppColors.deepBlue.withAlpha((0.12 * 255).toInt())),
       ),
       child: Row(
         children: [

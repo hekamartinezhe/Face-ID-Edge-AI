@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as dart_math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+// removed unused imports
 import '../services/api_client.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
@@ -37,7 +36,7 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
     ),
   );
 
-  bool _isModelLoaded = false;
+  // model loading flag removed (unused)
 
   List<double>? _lastEmbeddings;
   bool _showVectorPanel = false;
@@ -65,7 +64,7 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
   // ── INIT MODELO (ML Kit — sin TFLite) ───────────────────
   Future<void> _loadModel() async {
     // ML Kit ya está disponible, no necesitamos TFLite
-    setState(() => _isModelLoaded = true);
+    // no-op: ML Kit is available client-side
     debugPrint("✅ Extracción por landmarks + contornos ML Kit activa");
   }
 
@@ -302,7 +301,6 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
 
       // 5. Enviar imagen al servidor usando ApiClient (multipart)
       final bytes = await image.readAsBytes();
-
       if (mode == "register") {
         final nombre = _nameController.text.trim();
         final res = await ApiClient.instance.sendRegister(bytes, nombre, filename: image.name);
@@ -372,7 +370,7 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
         decoration: BoxDecoration(
           color: const Color(0xFF0D1B2A),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.cyanAccent.withOpacity(0.4)),
+                  border: Border.all(color: Colors.cyanAccent.withAlpha((0.4 * 255).toInt())),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,7 +379,7 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.cyanAccent.withOpacity(0.1),
+                color: Colors.cyanAccent.withAlpha((0.1 * 255).toInt()),
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(12)),
               ),
@@ -403,7 +401,7 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.2),
+                      color: Colors.green.withAlpha((0.2 * 255).toInt()),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.greenAccent, width: 0.8),
                     ),
@@ -464,7 +462,7 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
                           width: 36,
                           height: 20,
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.85),
+                            color: color.withAlpha((0.85 * 255).toInt()),
                             borderRadius: BorderRadius.circular(3),
                           ),
                           alignment: Alignment.center,
@@ -493,7 +491,7 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.cyanAccent,
                         side: BorderSide(
-                            color: Colors.cyanAccent.withOpacity(0.5)),
+                                    color: Colors.cyanAccent.withAlpha((0.5 * 255).toInt())),
                       ),
                       onPressed: () {
                         debugPrint(
@@ -523,7 +521,7 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
         Text(
           label,
           style: TextStyle(
-              color: color.withOpacity(0.7),
+              color: color.withAlpha((0.7 * 255).toInt()),
               fontSize: 9,
               letterSpacing: 0.8),
         ),
@@ -571,7 +569,7 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.15),
+                color: Colors.green.withAlpha((0.15 * 255).toInt()),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.greenAccent, width: 0.8),
               ),
@@ -680,7 +678,7 @@ class _FaceCameraScreenState extends State<FaceCameraScreen>
                       hintStyle: const TextStyle(color: Colors.grey),
                       enabledBorder: OutlineInputBorder(
                         borderSide: BorderSide(
-                            color: Colors.cyanAccent.withOpacity(0.5)),
+                            color: Colors.cyanAccent.withAlpha((0.5 * 255).toInt())),
                       ),
                       focusedBorder: const OutlineInputBorder(
                         borderSide: BorderSide(color: Colors.cyanAccent),

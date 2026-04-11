@@ -24,7 +24,6 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _showBoundingBox = false;
   bool _isProcessing = false;
   Color _boxColor = AppColors.successGreen;
-  OrchestratorResult? _lastResult;
 
   @override
   void initState() {
@@ -80,7 +79,6 @@ class _CameraScreenState extends State<CameraScreen> {
     setState(() {
       _showBoundingBox = true;
       _isProcessing = true;
-      _lastResult = null;
     });
 
     try {
@@ -99,7 +97,6 @@ class _CameraScreenState extends State<CameraScreen> {
       );
 
       setState(() {
-        _lastResult = orchestration;
         _boxColor = orchestration.result.match ? AppColors.successGreen : Colors.redAccent;
       });
 
@@ -130,6 +127,7 @@ class _CameraScreenState extends State<CameraScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) {
@@ -166,7 +164,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
-                    color: AppColors.deepBlue.withOpacity(0.25),
+                    color: AppColors.deepBlue.withAlpha((0.25 * 255).toInt()),
                   ),
                 ),
                 child: Stack(

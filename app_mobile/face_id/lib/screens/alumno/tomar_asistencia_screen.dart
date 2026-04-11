@@ -1,5 +1,5 @@
+// ignore_for_file: use_build_context_synchronously, prefer_interpolation_to_compose_strings, unused_import
 import 'dart:convert';
-import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -75,6 +75,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
       if (!mounted) return;
       setState(() {});
     } catch (e) {
+      if (!mounted) return;
       _showSnack("Error al iniciar la cámara", isError: true);
     }
   }
@@ -95,7 +96,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
       }
 
       // 3. Enviar a API para reconocimiento
-      final bytes = await File(image.path).readAsBytes();
+      final bytes = await image.readAsBytes();
       final base64Image = base64Encode(bytes);
 
       final response = await http.post(
@@ -116,6 +117,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
         final horaInicio = _parseHora(widget.clase['horaInicio']);
         final diferencia = now.difference(horaInicio);
         
+        if (!mounted) return;
         setState(() {
           _confianza = result['confianza'] ?? 0.95;
           if (diferencia.inMinutes > 15) {
@@ -127,12 +129,14 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
         });
       } else {
         // No reconocido - Figura 22
+        if (!mounted) return;
         setState(() {
           _resultStatus = 'no_reconocido';
           _showResult = true;
         });
       }
     } catch (e) {
+      if (!mounted) return;
       _showSnack("Error: $e", isError: true);
       setState(() => _isProcessing = false);
     }
@@ -143,10 +147,12 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
     final List<Face> faces = await _faceDetector.processImage(inputImage);
 
     if (faces.isEmpty) {
+      if (!mounted) return false;
       _showSnack("No se detectó ningún rostro", isError: true);
       return false;
     }
     if (faces.length > 1) {
+      if (!mounted) return false;
       _showSnack("Hay más de una persona en cámara", isError: true);
       return false;
     }
@@ -154,6 +160,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
     final face = faces.first;
 
     if ((face.headEulerAngleY ?? 0).abs() > 20) {
+      if (!mounted) return false;
       _showSnack("Mira directamente a la cámara", isError: true);
       return false;
     }
@@ -161,6 +168,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
     final leftEye = face.leftEyeOpenProbability;
     final rightEye = face.rightEyeOpenProbability;
     if (leftEye == null || rightEye == null || leftEye < 0.5 || rightEye < 0.5) {
+      if (!mounted) return false;
       _showSnack("Ojos no visibles", isError: true);
       return false;
     }
@@ -176,6 +184,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
   }
 
   void _showSnack(String message, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -225,7 +234,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
                   gradient: RadialGradient(
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.7),
+                      Colors.black.withAlpha((0.7 * 255).toInt()),
                     ],
                     stops: const [0.4, 1.0],
                   ),
@@ -250,7 +259,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
                         boxShadow: [
                           BoxShadow(
                             color: (_isProcessing ? Colors.yellow : Colors.cyanAccent)
-                                .withOpacity(0.3),
+                                .withAlpha((0.3 * 255).toInt()),
                             blurRadius: 20,
                             spreadRadius: 5,
                           ),
@@ -401,7 +410,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withAlpha((0.1 * 255).toInt()),
               shape: BoxShape.circle,
               border: Border.all(color: color, width: 3),
             ),
@@ -482,7 +491,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.1),
+              color: Colors.red.withAlpha((0.1 * 255).toInt()),
               shape: BoxShape.circle,
               border: Border.all(color: Colors.red, width: 3),
             ),

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
-import 'dart:io';
+// removed unused dart:io import
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -38,6 +38,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen> {
       if (!mounted) return;
       setState(() {});
     } catch (e) {
+      if (!mounted) return;
       _showSnack("Error al iniciar la cámara", isError: true);
     }
   }
@@ -75,6 +76,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen> {
         final data = jsonDecode(resp.body);
         if (data['resultado'] == 'reconocido') {
           // Navegar a éxito
+          if (!mounted) return;
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -88,8 +90,9 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen> {
             mensaje = data['error'];
           }
           if (data.containsKey('mensaje')) {
-            mensaje += '\n\n' + data['mensaje'];
+            mensaje += '\n\n${data['mensaje']}';
           }
+          if (!mounted) return;
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -98,9 +101,11 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen> {
           );
         }
       } else {
+        if (!mounted) return;
         _showSnack("Error en el servidor: ${resp.statusCode}", isError: true);
       }
     } catch (e) {
+      if (!mounted) return;
       _showSnack("Error al procesar: $e", isError: true);
     } finally {
       setState(() => _isProcessing = false);
