@@ -4,10 +4,10 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 import numpy as np
 import pandas as pd
-import evaluate_utils
-from dataset.image_folder_dataset import CustomImageFolderDataset
-from dataset.five_validation_dataset import FiveValidationDataset
-from dataset.record_dataset import AugmentRecordDataset
+from ai_research import evaluate_utils
+from ai_research.dataset.image_folder_dataset import CustomImageFolderDataset
+from ai_research.dataset.five_validation_dataset import FiveValidationDataset
+from ai_research.dataset.record_dataset import AugmentRecordDataset
 
 
 class DataModule(pl.LightningDataModule):

@@ -1,9 +1,5 @@
-try:
-    from . import net
-    from .face_alignment import align
-except ImportError:
-    import net
-    from face_alignment import align
+from ai_research import net
+from ai_research.face_alignment import align
 
 import torch
 import os

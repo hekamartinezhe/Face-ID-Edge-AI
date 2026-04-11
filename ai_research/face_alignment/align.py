@@ -2,7 +2,7 @@ import sys
 import os
 import torch
 
-from . import mtcnn
+from ai_research.face_alignment import mtcnn
 import argparse
 from PIL import Image
 from tqdm import tqdm

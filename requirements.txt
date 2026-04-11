@@ -1,10 +1,32 @@
+# --- Backend API ---
 fastapi
 uvicorn
+python-multipart
+pydantic
 motor
 anyio
-pillow
-numpy
-torch
-opencv-python
 pyngrok
-python-multipart
+
+# --- Machine Learning & AI ---
+torch
+torchvision
+pytorch-lightning
+
+# --- Computer Vision & Image Processing ---
+opencv-python
+pillow
+scikit-image
+
+# --- Data, Math & Utilities ---
+numpy
+scipy
+pandas
+scikit-learn
+tqdm
+matplotlib
+prettytable
+
+# --- Legacy / Evaluación (Opcionales, pero usados en tus scripts de validación) ---
+bcolz
+# mxnet (Descomentar solo si necesitas correr los scripts de conversión/evaluación antiguos)
+# menpo (Descomentar solo si necesitas plotear gráficas en los scripts IJB_helper)

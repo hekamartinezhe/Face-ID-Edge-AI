@@ -12,7 +12,7 @@ device = torch.device('cuda')
 torch.backends.cudnn.benchmark = True # Optimiza el rendimiento para tu GPU
 
 try:
-    from model import common
+    from ai_research.model import common
     print("✅ Código de arquitectura (common.py) detectado.")
 except ImportError:
     print(f"❌ ERROR: No se encuentra 'common.py' en: {os.path.join(ruta_base, 'model')}")

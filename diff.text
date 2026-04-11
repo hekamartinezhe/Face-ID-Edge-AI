@@ -1,0 +1,1214 @@
+diff --git a/app_mobile/face_id/lib/app_colors.dart b/app_mobile/face_id/lib/app_colors.dart
+deleted file mode 100644
+index f1e154f..0000000
+--- a/app_mobile/face_id/lib/app_colors.dart
++++ /dev/null
+@@ -1,16 +0,0 @@
+-import 'package:flutter/material.dart';
+-
+-class AppColors {
+-  const AppColors._();
+-
+-  static const Color deepBlue = Color(0xFF123D7A);
+-  static const Color successGreen = Color(0xFF1FA85B);
+-
+-  static const Color background = Color(0xFFF3F6FB);
+-  static const Color surface = Colors.white;
+-  static const Color textPrimary = Color(0xFF1A1F2B);
+-  static const Color textSecondary = Color(0xFF5F6B7A);
+-
+-  static const Color onDeepBlue = Colors.white;
+-  static const Color onSuccessGreen = Colors.white;
+-}
+diff --git a/app_mobile/face_id/lib/main.dart b/app_mobile/face_id/lib/main.dart
+index d25261a..650dcea 100644
+--- a/app_mobile/face_id/lib/main.dart
++++ b/app_mobile/face_id/lib/main.dart
+@@ -1,14 +1,21 @@
+ import 'package:flutter/material.dart';
+-import 'app_colors.dart';
+-import 'screens/camera_screen.dart';
+-import 'screens/dashboard_screen.dart';
+-import 'screens/enrollment_screen.dart';
+ import 'screens/login_screen.dart';
+-import 'screens/schedules_screen.dart';
+-import 'screens/success_screen.dart';
++import 'services/api_client.dart';
+ 
+ Future<void> main() async {
+   WidgetsFlutterBinding.ensureInitialized();
++
++  // Chequeo rápido del estado de la API antes de iniciar la UI.
++  final ok = await ApiClient.instance.checkStatus();
++  if (ok) {
++    final info = ApiClient.instance.serverInfo;
++    // Puedes hacer logging aquí si quieres
++    // print('API online: $info');
++  } else {
++    // Si no está, dejamos la app correr pero con serverOnline=false
++    // print('API offline o inaccesible');
++  }
++
+   runApp(const FaceIDApp());
+ }
+ 
+@@ -20,39 +27,12 @@ class FaceIDApp extends StatelessWidget {
+     return MaterialApp(
+       title: 'Face-ID Edge AI',
+       debugShowCheckedModeBanner: false,
+-      initialRoute: LoginScreen.routeName,
+-      routes: {
+-        LoginScreen.routeName: (_) => const LoginScreen(),
+-        DashboardScreen.routeName: (_) => const DashboardScreen(),
+-        CameraScreen.routeName: (_) => const CameraScreen(),
+-        SuccessScreen.routeName: (_) => const SuccessScreen(),
+-        SchedulesScreen.routeName: (_) => const SchedulesScreen(),
+-        EnrollmentScreen.routeName: (_) => const EnrollmentScreen(),
+-      },
+       theme: ThemeData(
++        primarySwatch: Colors.blue,
+         useMaterial3: true,
+-        scaffoldBackgroundColor: AppColors.background,
+-        colorScheme: ColorScheme.fromSeed(
+-          seedColor: AppColors.deepBlue,
+-          primary: AppColors.deepBlue,
+-          secondary: AppColors.successGreen,
+-          surface: AppColors.surface,
+-          background: AppColors.background,
+-        ),
+-        appBarTheme: const AppBarTheme(
+-          backgroundColor: AppColors.deepBlue,
+-          foregroundColor: AppColors.onDeepBlue,
+-          centerTitle: true,
+-        ),
+-        elevatedButtonTheme: ElevatedButtonThemeData(
+-          style: ElevatedButton.styleFrom(
+-            minimumSize: const Size.fromHeight(50),
+-            shape: RoundedRectangleBorder(
+-              borderRadius: BorderRadius.circular(12),
+-            ),
+-          ),
+-        ),
+       ),
++      // Aquí conectamos tu nueva interfaz
++      home: LoginScreen(),
+     );
+   }
+ }
+diff --git a/app_mobile/face_id/lib/screens/camera_screen.dart b/app_mobile/face_id/lib/screens/camera_screen.dart
+deleted file mode 100644
+index 6bf4f14..0000000
+--- a/app_mobile/face_id/lib/screens/camera_screen.dart
++++ /dev/null
+@@ -1,273 +0,0 @@
+-import 'package:flutter/material.dart';
+-import 'package:camera/camera.dart';
+-import '../app_colors.dart';
+-import 'success_screen.dart';
+-
+-class CameraScreen extends StatefulWidget {
+-  static const String routeName = '/camera';
+-
+-  const CameraScreen({super.key});
+-
+-  @override
+-  State<CameraScreen> createState() => _CameraScreenState();
+-}
+-
+-class _CameraScreenState extends State<CameraScreen> {
+-  CameraController? _cameraController;
+-  bool _cameraReady = false;
+-  String? _cameraError;
+-  bool _showBoundingBox = false;
+-  bool _isProcessing = false;
+-  Color _boxColor = AppColors.successGreen;
+-
+-  @override
+-  void initState() {
+-    super.initState();
+-    _initCamera();
+-  }
+-
+-  Future<void> _initCamera() async {
+-    try {
+-      final cameras = await availableCameras();
+-      if (cameras.isEmpty) {
+-        setState(() {
+-          _cameraError = 'No se detecto ninguna camara disponible.';
+-        });
+-        return;
+-      }
+-      final frontCam = cameras.firstWhere(
+-        (camera) => camera.lensDirection == CameraLensDirection.front,
+-        orElse: () => cameras.first,
+-      );
+-      final controller = CameraController(
+-        frontCam,
+-        ResolutionPreset.high,
+-        enableAudio: false,
+-      );
+-      await controller.initialize();
+-      if (!mounted) {
+-        await controller.dispose();
+-        return;
+-      }
+-      setState(() {
+-        _cameraController = controller;
+-        _cameraReady = true;
+-      });
+-    } catch (e) {
+-      if (!mounted) return;
+-      setState(() {
+-        _cameraError = 'No fue posible iniciar la camara.';
+-      });
+-    }
+-  }
+-
+-  Future<void> _simulateCaptureFlow() async {
+-    if (_isProcessing || !_cameraReady) return;
+-    final args =
+-        (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ??
+-            {};
+-    final String mode = (args['mode'] as String?) ?? 'attendance';
+-    final bool isEnrollment = mode == 'enrollment';
+-    final now = TimeOfDay.now();
+-    final bool isRetardo = !isEnrollment && now.minute > 10;
+-
+-    setState(() {
+-      _showBoundingBox = true;
+-      _boxColor = isRetardo ? const Color(0xFFF2C94C) : AppColors.successGreen;
+-    });
+-
+-    await Future.delayed(const Duration(milliseconds: 700));
+-
+-    if (!mounted) return;
+-    setState(() {
+-      _isProcessing = true;
+-    });
+-
+-    // Simula procesamiento asíncrono edge.
+-    await Future.delayed(const Duration(milliseconds: 1500));
+-
+-    if (!mounted) return;
+-    Navigator.pushNamed(
+-      context,
+-      SuccessScreen.routeName,
+-      arguments: {
+-        'mode': mode,
+-        'status': isRetardo ? 'Retardo' : 'Presente',
+-        'name': (args['name'] as String?) ?? 'Hector Kaleb Martinez Hernandez',
+-        'matricula': (args['matricula'] as String?) ?? 'TIC-320042',
+-      },
+-    );
+-
+-    setState(() {
+-      _isProcessing = false;
+-      _showBoundingBox = false;
+-    });
+-  }
+-
+-  @override
+-  Widget build(BuildContext context) {
+-    final args =
+-        (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ??
+-            {};
+-    final String mode = (args['mode'] as String?) ?? 'attendance';
+-    final bool isEnrollment = mode == 'enrollment';
+-
+-    return Scaffold(
+-      appBar: AppBar(
+-        title: Text(
+-          isEnrollment ? 'Enrolamiento Biometrico' : 'Registro de Asistencia',
+-        ),
+-      ),
+-      body: Padding(
+-        padding: const EdgeInsets.all(18),
+-        child: Column(
+-          children: [
+-            Expanded(
+-              child: Container(
+-                width: double.infinity,
+-                decoration: BoxDecoration(
+-                  color: AppColors.surface,
+-                  borderRadius: BorderRadius.circular(18),
+-                  border: Border.all(
+-                    color: AppColors.deepBlue.withOpacity(0.25),
+-                  ),
+-                ),
+-                child: Stack(
+-                  alignment: Alignment.center,
+-                  children: [
+-                    Container(
+-                      margin: const EdgeInsets.all(14),
+-                      clipBehavior: Clip.antiAlias,
+-                      decoration: BoxDecoration(
+-                        borderRadius: BorderRadius.circular(14),
+-                      ),
+-                      child: _buildCameraLayer(),
+-                    ),
+-                    // Overlay circular de alineacion.
+-                    IgnorePointer(
+-                      child: Container(
+-                        width: 260,
+-                        height: 260,
+-                        decoration: BoxDecoration(
+-                          shape: BoxShape.circle,
+-                          border: Border.all(
+-                            color: AppColors.deepBlue,
+-                            width: 3,
+-                          ),
+-                        ),
+-                      ),
+-                    ),
+-                    Positioned(
+-                      top: 18,
+-                      child: Container(
+-                        padding: const EdgeInsets.symmetric(
+-                          horizontal: 12,
+-                          vertical: 8,
+-                        ),
+-                        decoration: BoxDecoration(
+-                          color: AppColors.deepBlue,
+-                          borderRadius: BorderRadius.circular(12),
+-                        ),
+-                        child: const Text(
+-                          'Alinee el rostro en el circulo',
+-                          style: TextStyle(
+-                            color: AppColors.onDeepBlue,
+-                            fontWeight: FontWeight.w600,
+-                          ),
+-                        ),
+-                      ),
+-                    ),
+-                    if (_showBoundingBox)
+-                      Container(
+-                        width: 170,
+-                        height: 210,
+-                        decoration: BoxDecoration(
+-                          border: Border.all(
+-                            color: _boxColor,
+-                            width: 3,
+-                          ),
+-                          borderRadius: BorderRadius.circular(8),
+-                        ),
+-                      ),
+-                    if (_isProcessing)
+-                      Container(
+-                        color: Colors.black45,
+-                        child: Center(
+-                          child: Container(
+-                            padding: const EdgeInsets.all(16),
+-                            decoration: BoxDecoration(
+-                              color: AppColors.surface,
+-                              borderRadius: BorderRadius.circular(12),
+-                            ),
+-                            child: Column(
+-                              mainAxisSize: MainAxisSize.min,
+-                              children: [
+-                                const CircularProgressIndicator(
+-                                  color: AppColors.deepBlue,
+-                                ),
+-                                const SizedBox(height: 12),
+-                                const Text(
+-                                  'Procesando en Servidor Remoto (Edge)...',
+-                                  textAlign: TextAlign.center,
+-                                ),
+-                                const SizedBox(height: 8),
+-                                Text(
+-                                  isEnrollment
+-                                      ? 'Generando Face Chips (112x112)'
+-                                      : 'Comparando embeddings en servidor',
+-                                  style: const TextStyle(
+-                                    color: AppColors.textSecondary,
+-                                    fontSize: 12,
+-                                  ),
+-                                ),
+-                              ],
+-                            ),
+-                          ),
+-                        ),
+-                      ),
+-                  ],
+-                ),
+-              ),
+-            ),
+-            const SizedBox(height: 14),
+-            ElevatedButton.icon(
+-              style: ElevatedButton.styleFrom(
+-                backgroundColor: AppColors.deepBlue,
+-                foregroundColor: AppColors.onDeepBlue,
+-              ),
+-              onPressed: (_isProcessing || !_cameraReady)
+-                  ? null
+-                  : _simulateCaptureFlow,
+-              icon: const Icon(Icons.camera_alt_rounded),
+-              label: Text(isEnrollment ? 'Capturar Rafaga' : 'Capturar'),
+-            ),
+-          ],
+-        ),
+-      ),
+-    );
+-  }
+-
+-  Widget _buildCameraLayer() {
+-    if (_cameraError != null) {
+-      return Center(
+-        child: Text(
+-          _cameraError!,
+-          style: const TextStyle(color: AppColors.textSecondary),
+-          textAlign: TextAlign.center,
+-        ),
+-      );
+-    }
+-    if (!_cameraReady || _cameraController == null) {
+-      return const Center(
+-        child: CircularProgressIndicator(color: AppColors.deepBlue),
+-      );
+-    }
+-    return CameraPreview(_cameraController!);
+-  }
+-
+-  @override
+-  void dispose() {
+-    _cameraController?.dispose();
+-    super.dispose();
+-  }
+-}
+diff --git a/app_mobile/face_id/lib/screens/dashboard_screen.dart b/app_mobile/face_id/lib/screens/dashboard_screen.dart
+deleted file mode 100644
+index 8211ba9..0000000
+--- a/app_mobile/face_id/lib/screens/dashboard_screen.dart
++++ /dev/null
+@@ -1,166 +0,0 @@
+-import 'package:flutter/material.dart';
+-import '../app_colors.dart';
+-import 'camera_screen.dart';
+-import 'enrollment_screen.dart';
+-import 'login_screen.dart';
+-import 'schedules_screen.dart';
+-
+-class DashboardScreen extends StatelessWidget {
+-  static const String routeName = '/dashboard';
+-
+-  const DashboardScreen({super.key});
+-
+-  @override
+-  Widget build(BuildContext context) {
+-    final args =
+-        (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ??
+-            {};
+-    final bool isDocente = args['isDocente'] == true;
+-    final String actorLabel = isDocente ? 'Docente activo' : 'Alumno activo';
+-    final String actorName = isDocente
+-        ? 'Lizbeth Geraldine Ibarra Carlos'
+-        : 'Hector Kaleb Martinez Hernandez';
+-
+-    return Scaffold(
+-      appBar: AppBar(
+-        title: const Text('Dashboard'),
+-        actions: [
+-          IconButton(
+-            onPressed: () {
+-              Navigator.pushNamedAndRemoveUntil(
+-                context,
+-                LoginScreen.routeName,
+-                (route) => false,
+-              );
+-            },
+-            icon: const Icon(Icons.logout_rounded),
+-            tooltip: 'Cerrar sesion',
+-          ),
+-        ],
+-      ),
+-      body: Padding(
+-        padding: const EdgeInsets.all(20),
+-        child: Column(
+-          crossAxisAlignment: CrossAxisAlignment.stretch,
+-          children: [
+-            Container(
+-              padding: const EdgeInsets.all(14),
+-              decoration: BoxDecoration(
+-                color: AppColors.surface,
+-                borderRadius: BorderRadius.circular(14),
+-              ),
+-              child: const Row(
+-                children: [
+-                  Icon(
+-                    Icons.check_circle_rounded,
+-                    color: AppColors.successGreen,
+-                  ),
+-                  SizedBox(width: 10),
+-                  Expanded(
+-                    child: Text(
+-                      'Conectado a Red Universitaria (IP Validada)',
+-                      style: TextStyle(
+-                        color: AppColors.textPrimary,
+-                        fontWeight: FontWeight.w600,
+-                      ),
+-                    ),
+-                  ),
+-                ],
+-              ),
+-            ),
+-            const SizedBox(height: 20),
+-            Container(
+-              padding: const EdgeInsets.all(18),
+-              decoration: BoxDecoration(
+-                color: AppColors.surface,
+-                borderRadius: BorderRadius.circular(16),
+-                border: Border.all(
+-                  color: AppColors.deepBlue.withOpacity(0.15),
+-                ),
+-              ),
+-              child: Column(
+-                crossAxisAlignment: CrossAxisAlignment.start,
+-                children: [
+-                  Text(
+-                    actorLabel,
+-                    style: const TextStyle(
+-                      color: AppColors.textSecondary,
+-                      fontSize: 13,
+-                    ),
+-                  ),
+-                  const SizedBox(height: 6),
+-                  Text(
+-                    actorName,
+-                    style: const TextStyle(
+-                      fontSize: 19,
+-                      fontWeight: FontWeight.w700,
+-                      color: AppColors.textPrimary,
+-                    ),
+-                  ),
+-                  if (!isDocente) ...[
+-                    const SizedBox(height: 6),
+-                    const Text(
+-                      'Matricula: TIC-320042',
+-                      style: TextStyle(
+-                        color: AppColors.textSecondary,
+-                      ),
+-                    ),
+-                  ],
+-                ],
+-              ),
+-            ),
+-            const SizedBox(height: 24),
+-            ElevatedButton.icon(
+-              style: ElevatedButton.styleFrom(
+-                backgroundColor: AppColors.deepBlue,
+-                foregroundColor: AppColors.onDeepBlue,
+-              ),
+-              onPressed: () => Navigator.pushNamed(
+-                context,
+-                CameraScreen.routeName,
+-                arguments: {'mode': 'attendance'},
+-              ),
+-              icon: const Icon(Icons.camera_alt_rounded),
+-              label: const Text('Registrar Asistencia'),
+-            ),
+-            const SizedBox(height: 12),
+-            ElevatedButton.icon(
+-              style: ElevatedButton.styleFrom(
+-                backgroundColor: AppColors.deepBlue,
+-                foregroundColor: AppColors.onDeepBlue,
+-              ),
+-              onPressed: isDocente
+-                  ? () => Navigator.pushNamed(context, EnrollmentScreen.routeName)
+-                  : null,
+-              icon: const Icon(Icons.person_add_alt_1_rounded),
+-              label: const Text('Registrar Nuevo Alumno'),
+-            ),
+-            const SizedBox(height: 12),
+-            ElevatedButton.icon(
+-              style: ElevatedButton.styleFrom(
+-                backgroundColor: AppColors.successGreen,
+-                foregroundColor: AppColors.onSuccessGreen,
+-              ),
+-              onPressed: isDocente
+-                  ? () => Navigator.pushNamed(context, SchedulesScreen.routeName)
+-                  : null,
+-              icon: const Icon(Icons.schedule_rounded),
+-              label: const Text('Gestion de Horarios (Docente)'),
+-            ),
+-            if (!isDocente) ...[
+-              const SizedBox(height: 8),
+-              const Text(
+-                'Activa perfil Docente en login para habilitar Gestion.',
+-                textAlign: TextAlign.center,
+-                style: TextStyle(
+-                  color: AppColors.textSecondary,
+-                  fontSize: 12,
+-                ),
+-              ),
+-            ],
+-          ],
+-        ),
+-      ),
+-    );
+-  }
+-}
+diff --git a/app_mobile/face_id/lib/screens/enrollment_screen.dart b/app_mobile/face_id/lib/screens/enrollment_screen.dart
+deleted file mode 100644
+index 93ebd9a..0000000
+--- a/app_mobile/face_id/lib/screens/enrollment_screen.dart
++++ /dev/null
+@@ -1,127 +0,0 @@
+-import 'package:flutter/material.dart';
+-import '../app_colors.dart';
+-import 'camera_screen.dart';
+-
+-class EnrollmentScreen extends StatefulWidget {
+-  static const String routeName = '/enrollment';
+-
+-  const EnrollmentScreen({super.key});
+-
+-  @override
+-  State<EnrollmentScreen> createState() => _EnrollmentScreenState();
+-}
+-
+-class _EnrollmentScreenState extends State<EnrollmentScreen> {
+-  final _formKey = GlobalKey<FormState>();
+-  final _nameCtrl = TextEditingController();
+-  final _matriculaCtrl = TextEditingController();
+-  final _groupCtrl = TextEditingController();
+-
+-  @override
+-  void dispose() {
+-    _nameCtrl.dispose();
+-    _matriculaCtrl.dispose();
+-    _groupCtrl.dispose();
+-    super.dispose();
+-  }
+-
+-  void _continueToCapture() {
+-    if (!_formKey.currentState!.validate()) return;
+-
+-    if (_matriculaCtrl.text.trim().toUpperCase() == 'TIC-320042') {
+-      ScaffoldMessenger.of(context).showSnackBar(
+-        const SnackBar(
+-          content: Text('Matricula duplicada: el alumno ya existe.'),
+-        ),
+-      );
+-      return;
+-    }
+-
+-    Navigator.pushNamed(
+-      context,
+-      CameraScreen.routeName,
+-      arguments: {
+-        'mode': 'enrollment',
+-        'name': _nameCtrl.text.trim(),
+-        'matricula': _matriculaCtrl.text.trim(),
+-        'group': _groupCtrl.text.trim(),
+-      },
+-    );
+-  }
+-
+-  @override
+-  Widget build(BuildContext context) {
+-    return Scaffold(
+-      appBar: AppBar(title: const Text('Enrolamiento Biometrico')),
+-      body: SingleChildScrollView(
+-        padding: const EdgeInsets.all(20),
+-        child: Form(
+-          key: _formKey,
+-          child: Column(
+-            crossAxisAlignment: CrossAxisAlignment.stretch,
+-            children: [
+-              const Text(
+-                'Registro de nuevo alumno',
+-                style: TextStyle(
+-                  fontSize: 20,
+-                  fontWeight: FontWeight.w700,
+-                  color: AppColors.deepBlue,
+-                ),
+-              ),
+-              const SizedBox(height: 14),
+-              _field(
+-                controller: _nameCtrl,
+-                label: 'Nombre',
+-                errorText: 'Captura el nombre del alumno',
+-              ),
+-              const SizedBox(height: 10),
+-              _field(
+-                controller: _matriculaCtrl,
+-                label: 'Matricula',
+-                errorText: 'Captura la matricula',
+-              ),
+-              const SizedBox(height: 10),
+-              _field(
+-                controller: _groupCtrl,
+-                label: 'Grupo',
+-                errorText: 'Captura el grupo',
+-              ),
+-              const SizedBox(height: 18),
+-              ElevatedButton.icon(
+-                style: ElevatedButton.styleFrom(
+-                  backgroundColor: AppColors.deepBlue,
+-                  foregroundColor: AppColors.onDeepBlue,
+-                ),
+-                onPressed: _continueToCapture,
+-                icon: const Icon(Icons.camera_alt_rounded),
+-                label: const Text('Continuar a Captura Facial'),
+-              ),
+-            ],
+-          ),
+-        ),
+-      ),
+-    );
+-  }
+-
+-  Widget _field({
+-    required TextEditingController controller,
+-    required String label,
+-    required String errorText,
+-  }) {
+-    return TextFormField(
+-      controller: controller,
+-      decoration: InputDecoration(
+-        labelText: label,
+-        filled: true,
+-        fillColor: AppColors.surface,
+-        border: OutlineInputBorder(
+-          borderRadius: BorderRadius.circular(12),
+-        ),
+-      ),
+-      validator: (value) {
+-        if (value == null || value.trim().isEmpty) return errorText;
+-        return null;
+-      },
+-    );
+-  }
+-}
+diff --git a/app_mobile/face_id/lib/screens/login_screen.dart b/app_mobile/face_id/lib/screens/login_screen.dart
+index 0baa684..e093e7c 100644
+--- a/app_mobile/face_id/lib/screens/login_screen.dart
++++ b/app_mobile/face_id/lib/screens/login_screen.dart
+@@ -1,141 +1,56 @@
+ import 'package:flutter/material.dart';
+-import '../app_colors.dart';
+-import 'dashboard_screen.dart';
++import '../models/user_model.dart';
++import '../services/auth_service.dart';
++import 'camara_screen.dart';
++import 'tomar_asistencia_screen.dart';
+ 
+-enum UserRole { alumno, docente }
++class LoginScreen extends StatelessWidget {
++  final AuthService _auth = AuthService();
+ 
+-class LoginScreen extends StatefulWidget {
+-  static const String routeName = '/login';
+-
+-  const LoginScreen({super.key});
+-
+-  @override
+-  State<LoginScreen> createState() => _LoginScreenState();
+-}
+-
+-class _LoginScreenState extends State<LoginScreen> {
+-  UserRole _selectedRole = UserRole.alumno;
++  LoginScreen({super.key});
+ 
+   @override
+   Widget build(BuildContext context) {
+     return Scaffold(
+-      body: SafeArea(
+-        child: Padding(
+-          padding: const EdgeInsets.all(24),
+-          child: Column(
+-            children: [
+-              const Spacer(),
+-              Icon(
+-                Icons.verified_user_rounded,
+-                size: 90,
+-                color: AppColors.deepBlue,
+-              ),
+-              const SizedBox(height: 20),
+-              const Text(
+-                'Face-ID Edge AI',
+-                style: TextStyle(
+-                  fontSize: 28,
+-                  fontWeight: FontWeight.w700,
+-                  color: AppColors.deepBlue,
+-                ),
+-              ),
+-              const SizedBox(height: 8),
+-              const Text(
+-                'Acceso al sistema para demostracion final',
+-                textAlign: TextAlign.center,
+-                style: TextStyle(
+-                  color: AppColors.textSecondary,
+-                  fontSize: 16,
+-                ),
+-              ),
+-              const SizedBox(height: 28),
+-              TextField(
+-                decoration: InputDecoration(
+-                  labelText: 'Correo institucional',
+-                  filled: true,
+-                  fillColor: AppColors.surface,
+-                  border: OutlineInputBorder(
+-                    borderRadius: BorderRadius.circular(12),
+-                  ),
+-                ),
+-              ),
+-              const SizedBox(height: 14),
+-              TextField(
+-                obscureText: true,
+-                decoration: InputDecoration(
+-                  labelText: 'Contrasena',
+-                  filled: true,
+-                  fillColor: AppColors.surface,
+-                  border: OutlineInputBorder(
+-                    borderRadius: BorderRadius.circular(12),
+-                  ),
+-                ),
+-              ),
+-              const SizedBox(height: 14),
+-              Container(
+-                width: double.infinity,
+-                padding: const EdgeInsets.all(12),
+-                decoration: BoxDecoration(
+-                  color: AppColors.surface,
+-                  borderRadius: BorderRadius.circular(12),
+-                ),
+-                child: Column(
+-                  crossAxisAlignment: CrossAxisAlignment.start,
+-                  children: [
+-                    const Text(
+-                      'Perfil de acceso',
+-                      style: TextStyle(
+-                        color: AppColors.textPrimary,
+-                        fontWeight: FontWeight.w600,
+-                      ),
+-                    ),
+-                    RadioListTile<UserRole>(
+-                      dense: true,
+-                      value: UserRole.alumno,
+-                      groupValue: _selectedRole,
+-                      activeColor: AppColors.deepBlue,
+-                      title: const Text('Alumno'),
+-                      onChanged: (value) {
+-                        if (value == null) return;
+-                        setState(() => _selectedRole = value);
+-                      },
+-                    ),
+-                    RadioListTile<UserRole>(
+-                      dense: true,
+-                      value: UserRole.docente,
+-                      groupValue: _selectedRole,
+-                      activeColor: AppColors.deepBlue,
+-                      title: const Text('Docente'),
+-                      onChanged: (value) {
+-                        if (value == null) return;
+-                        setState(() => _selectedRole = value);
+-                      },
+-                    ),
+-                  ],
+-                ),
+-              ),
+-              const SizedBox(height: 18),
+-              ElevatedButton(
+-                style: ElevatedButton.styleFrom(
+-                  backgroundColor: AppColors.deepBlue,
+-                  foregroundColor: AppColors.onDeepBlue,
+-                ),
+-                onPressed: () {
+-                  Navigator.pushReplacementNamed(
+-                    context,
+-                    DashboardScreen.routeName,
+-                    arguments: {
+-                      'isDocente': _selectedRole == UserRole.docente,
+-                    },
+-                  );
+-                },
+-                child: const Text('Iniciar sesion'),
+-              ),
+-              const Spacer(),
+-            ],
+-          ),
++      appBar: AppBar(title: const Text("Face-ID: Selección de Rol")),
++      body: Center(
++        child: Column(
++          mainAxisAlignment: MainAxisAlignment.center,
++          children: [
++            const Text("Acceso al Sistema de Asistencia", 
++              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
++            const SizedBox(height: 30),
++            ElevatedButton(
++              onPressed: () => _login(context, UserRole.alumno),
++              child: const Text("INGRESAR COMO ALUMNO"),
++            ),
++            const SizedBox(height: 15),
++            ElevatedButton(
++              style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey),
++              onPressed: () => _login(context, UserRole.docente),
++              child: const Text("INGRESAR COMO DOCENTE", 
++                style: TextStyle(color: Colors.white)),
++            ),
++          ],
+         ),
+       ),
+     );
+   }
++
++void _login(BuildContext context, UserRole role) async {
++  final user = UserModel(id: "u_test_01", name: "Héctor Kaleb", role: role);
++  await _auth.saveUserSession(user);
++  
++  Widget nextScreen;
++  if (role == UserRole.alumno) {
++    nextScreen = const TomarAsistenciaScreen();
++  } else {
++    nextScreen = const FaceCameraScreen();
++  }
++  
++  Navigator.push(
++    context,
++    MaterialPageRoute(builder: (context) => nextScreen),
++  );
++}
+ }
+\ No newline at end of file
+diff --git a/app_mobile/face_id/lib/screens/schedules_screen.dart b/app_mobile/face_id/lib/screens/schedules_screen.dart
+deleted file mode 100644
+index b28f7d0..0000000
+--- a/app_mobile/face_id/lib/screens/schedules_screen.dart
++++ /dev/null
+@@ -1,203 +0,0 @@
+-import 'package:flutter/material.dart';
+-import '../app_colors.dart';
+-
+-class SchedulesScreen extends StatefulWidget {
+-  static const String routeName = '/schedules';
+-
+-  const SchedulesScreen({super.key});
+-
+-  @override
+-  State<SchedulesScreen> createState() => _SchedulesScreenState();
+-}
+-
+-class _SchedulesScreenState extends State<SchedulesScreen> {
+-  final _formKey = GlobalKey<FormState>();
+-  final _materiaCtrl = TextEditingController();
+-  final _inicioCtrl = TextEditingController();
+-  final _finCtrl = TextEditingController();
+-  final _tolCtrl = TextEditingController();
+-
+-  @override
+-  void dispose() {
+-    _materiaCtrl.dispose();
+-    _inicioCtrl.dispose();
+-    _finCtrl.dispose();
+-    _tolCtrl.dispose();
+-    super.dispose();
+-  }
+-
+-  void _saveSchedule() {
+-    if (!_formKey.currentState!.validate()) return;
+-
+-    final start = _toMinutes(_inicioCtrl.text.trim());
+-    final end = _toMinutes(_finCtrl.text.trim());
+-    if (start == null || end == null || end <= start) {
+-      ScaffoldMessenger.of(context).showSnackBar(
+-        const SnackBar(
+-          content: Text('Horario invalido: la hora de fin debe ser mayor.'),
+-        ),
+-      );
+-      return;
+-    }
+-
+-    final materia = _materiaCtrl.text.trim().toLowerCase();
+-    if (materia == 'inteligencia artificial' && _inicioCtrl.text.trim() == '08:00') {
+-      ScaffoldMessenger.of(context).showSnackBar(
+-        const SnackBar(
+-          content: Text('Conflicto detectado con un horario existente.'),
+-        ),
+-      );
+-      return;
+-    }
+-
+-    ScaffoldMessenger.of(context).showSnackBar(
+-      const SnackBar(
+-        content: Text('Horario actualizado correctamente.'),
+-      ),
+-    );
+-  }
+-
+-  int? _toMinutes(String value) {
+-    final parts = value.split(':');
+-    if (parts.length != 2) return null;
+-    final h = int.tryParse(parts[0]);
+-    final m = int.tryParse(parts[1]);
+-    if (h == null || m == null || h < 0 || h > 23 || m < 0 || m > 59) {
+-      return null;
+-    }
+-    return h * 60 + m;
+-  }
+-
+-  @override
+-  Widget build(BuildContext context) {
+-    return Scaffold(
+-      appBar: AppBar(title: const Text('Gestion de Horarios')),
+-      body: SingleChildScrollView(
+-        padding: const EdgeInsets.all(20),
+-        child: Column(
+-          crossAxisAlignment: CrossAxisAlignment.stretch,
+-          children: [
+-            Form(
+-              key: _formKey,
+-              child: Container(
+-                padding: const EdgeInsets.all(16),
+-                decoration: BoxDecoration(
+-                  color: AppColors.surface,
+-                  borderRadius: BorderRadius.circular(14),
+-                ),
+-                child: Column(
+-                  crossAxisAlignment: CrossAxisAlignment.start,
+-                  children: [
+-                    const Text(
+-                      'Formulario Docente',
+-                      style: TextStyle(
+-                        fontWeight: FontWeight.w700,
+-                        fontSize: 18,
+-                        color: AppColors.deepBlue,
+-                      ),
+-                    ),
+-                    const SizedBox(height: 14),
+-                    _buildField(_materiaCtrl, 'Materia'),
+-                    const SizedBox(height: 10),
+-                    _buildField(_inicioCtrl, 'Hora de Inicio (HH:MM)'),
+-                    const SizedBox(height: 10),
+-                    _buildField(_finCtrl, 'Hora de Fin (HH:MM)'),
+-                    const SizedBox(height: 10),
+-                    _buildField(_tolCtrl, 'Minutos de Tolerancia'),
+-                    const SizedBox(height: 14),
+-                    ElevatedButton(
+-                      style: ElevatedButton.styleFrom(
+-                        backgroundColor: AppColors.deepBlue,
+-                        foregroundColor: AppColors.onDeepBlue,
+-                      ),
+-                      onPressed: _saveSchedule,
+-                      child: const Text('Guardar Horario'),
+-                    ),
+-                  ],
+-                ),
+-              ),
+-            ),
+-            const SizedBox(height: 20),
+-            const Text(
+-              'Materias Programadas',
+-              style: TextStyle(
+-                fontSize: 18,
+-                fontWeight: FontWeight.w700,
+-                color: AppColors.deepBlue,
+-              ),
+-            ),
+-            const SizedBox(height: 10),
+-            _buildSubjectTile(
+-              title: 'Inteligencia Artificial',
+-              subtitle: '08:00 - 10:00 | Tolerancia: 10 min',
+-            ),
+-            const SizedBox(height: 8),
+-            _buildSubjectTile(
+-              title: 'Redes',
+-              subtitle: '10:00 - 12:00 | Tolerancia: 15 min',
+-            ),
+-          ],
+-        ),
+-      ),
+-    );
+-  }
+-
+-  Widget _buildField(TextEditingController controller, String label) {
+-    return TextFormField(
+-      controller: controller,
+-      decoration: InputDecoration(
+-        labelText: label,
+-        filled: true,
+-        fillColor: AppColors.background,
+-        border: OutlineInputBorder(
+-          borderRadius: BorderRadius.circular(12),
+-        ),
+-      ),
+-      validator: (value) {
+-        if (value == null || value.trim().isEmpty) {
+-          return 'Campo obligatorio';
+-        }
+-        return null;
+-      },
+-    );
+-  }
+-
+-  Widget _buildSubjectTile({required String title, required String subtitle}) {
+-    return Container(
+-      padding: const EdgeInsets.all(14),
+-      decoration: BoxDecoration(
+-        color: AppColors.surface,
+-        borderRadius: BorderRadius.circular(12),
+-        border: Border.all(color: AppColors.deepBlue.withOpacity(0.12)),
+-      ),
+-      child: Row(
+-        children: [
+-          const Icon(Icons.menu_book_rounded, color: AppColors.deepBlue),
+-          const SizedBox(width: 10),
+-          Expanded(
+-            child: Column(
+-              crossAxisAlignment: CrossAxisAlignment.start,
+-              children: [
+-                Text(
+-                  title,
+-                  style: const TextStyle(
+-                    color: AppColors.textPrimary,
+-                    fontWeight: FontWeight.w600,
+-                  ),
+-                ),
+-                const SizedBox(height: 4),
+-                Text(
+-                  subtitle,
+-                  style: const TextStyle(
+-                    color: AppColors.textSecondary,
+-                    fontSize: 13,
+-                  ),
+-                ),
+-              ],
+-            ),
+-          ),
+-        ],
+-      ),
+-    );
+-  }
+-}
+diff --git a/app_mobile/face_id/lib/screens/success_screen.dart b/app_mobile/face_id/lib/screens/success_screen.dart
+deleted file mode 100644
+index 769394f..0000000
+--- a/app_mobile/face_id/lib/screens/success_screen.dart
++++ /dev/null
+@@ -1,127 +0,0 @@
+-import 'package:flutter/material.dart';
+-import '../app_colors.dart';
+-import 'camera_screen.dart';
+-import 'dashboard_screen.dart';
+-
+-class SuccessScreen extends StatelessWidget {
+-  static const String routeName = '/success';
+-
+-  const SuccessScreen({super.key});
+-
+-  @override
+-  Widget build(BuildContext context) {
+-    final args =
+-        (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ??
+-            {};
+-    final String mode = (args['mode'] as String?) ?? 'attendance';
+-    final String status = (args['status'] as String?) ?? 'Presente';
+-    final String name =
+-        (args['name'] as String?) ?? 'Hector Kaleb Martinez Hernandez';
+-    final String matricula = (args['matricula'] as String?) ?? 'TIC-320042';
+-    final bool isEnrollment = mode == 'enrollment';
+-
+-    final now = TimeOfDay.now();
+-    final horaActual =
+-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+-
+-    return Scaffold(
+-      appBar: AppBar(
+-        title: Text(
+-          isEnrollment ? 'Resultado de Enrolamiento' : 'Resultado de Asistencia',
+-        ),
+-      ),
+-      body: Padding(
+-        padding: const EdgeInsets.all(20),
+-        child: Column(
+-          children: [
+-            const SizedBox(height: 18),
+-            const Icon(
+-              Icons.verified_rounded,
+-              size: 88,
+-              color: AppColors.successGreen,
+-            ),
+-            const SizedBox(height: 14),
+-            const Text(
+-              'Operacion Exitosa',
+-              style: TextStyle(
+-                fontSize: 24,
+-                fontWeight: FontWeight.w700,
+-                color: AppColors.deepBlue,
+-              ),
+-            ),
+-            const SizedBox(height: 18),
+-            Container(
+-              width: double.infinity,
+-              padding: const EdgeInsets.all(16),
+-              decoration: BoxDecoration(
+-                color: AppColors.surface,
+-                borderRadius: BorderRadius.circular(14),
+-              ),
+-              child: Column(
+-                crossAxisAlignment: CrossAxisAlignment.start,
+-                children: [
+-                  Text(
+-                    isEnrollment
+-                        ? 'Alumno registrado correctamente: $name'
+-                        : 'Asistencia registrada: $name - $horaActual',
+-                    style: const TextStyle(
+-                      color: AppColors.textPrimary,
+-                      fontWeight: FontWeight.w600,
+-                    ),
+-                  ),
+-                  const SizedBox(height: 10),
+-                  Text(
+-                    'Matricula: $matricula',
+-                    style: const TextStyle(color: AppColors.textSecondary),
+-                  ),
+-                  const SizedBox(height: 10),
+-                  Text(
+-                    isEnrollment ? 'Estatus: Enrolado' : 'Estatus: $status',
+-                    style: TextStyle(
+-                      color: status == 'Retardo'
+-                          ? const Color(0xFFF2C94C)
+-                          : AppColors.successGreen,
+-                      fontWeight: FontWeight.w700,
+-                    ),
+-                  ),
+-                ],
+-              ),
+-            ),
+-            const Spacer(),
+-            ElevatedButton.icon(
+-              style: ElevatedButton.styleFrom(
+-                backgroundColor: AppColors.deepBlue,
+-                foregroundColor: AppColors.onDeepBlue,
+-              ),
+-              onPressed: () {
+-                Navigator.pushNamedAndRemoveUntil(
+-                  context,
+-                  DashboardScreen.routeName,
+-                  (route) => false,
+-                );
+-              },
+-              icon: const Icon(Icons.dashboard_rounded),
+-              label: const Text('Volver al Dashboard'),
+-            ),
+-            const SizedBox(height: 10),
+-            ElevatedButton.icon(
+-              style: ElevatedButton.styleFrom(
+-                backgroundColor: AppColors.successGreen,
+-                foregroundColor: AppColors.onSuccessGreen,
+-              ),
+-              onPressed: () {
+-                Navigator.pushNamedAndRemoveUntil(
+-                  context,
+-                  CameraScreen.routeName,
+-                  (route) => false,
+-                );
+-              },
+-              icon: const Icon(Icons.replay_rounded),
+-              label: const Text('Nueva Captura'),
+-            ),
+-          ],
+-        ),
+-      ),
+-    );
+-  }
+-}

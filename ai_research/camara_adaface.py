@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import sys
 import os
-from prueba_adaface import model, device # Importamos tu modelo ya listo
+from ai_research.prueba_adaface import model, device # Importamos tu modelo ya listo
 
 # 1. Función para preprocesar lo que ve la cámara
 def preprocesar_frame(face_crop):

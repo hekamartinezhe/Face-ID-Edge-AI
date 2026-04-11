@@ -6,11 +6,11 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, WandbLogger
 from pytorch_lightning import seed_everything
-import config
+from ai_research import config
 import os
-from utils import dotdict
-import train_val
-import data
+from ai_research import train_val
+from ai_research import data
+from ai_research.utils import dotdict
 import inspect
 
 def main(args):
