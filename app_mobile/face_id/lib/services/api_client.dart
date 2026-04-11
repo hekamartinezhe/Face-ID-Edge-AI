@@ -9,8 +9,8 @@ class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
 
-  // Por defecto uso tu túnel ngrok; puedes cambiarlo en tiempo de ejecución. kaleb
-  String baseUrl = 'https://7f80-177-229-178-140.ngrok-free.app';
+  // Por defecto uso tu túnel ngrok; puedes cambiarlo en tiempo de ejecución.
+  String baseUrl = 'https://52f9-177-229-178-140.ngrok-free.app';
   bool serverOnline = false;
   Map<String, dynamic>? serverInfo;
 
