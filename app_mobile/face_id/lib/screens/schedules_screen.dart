@@ -26,35 +26,85 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     super.dispose();
   }
 
-  void _saveSchedule() {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _saveSchedule() async {
+    // E1: Campos incompletos
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Campos incompletos. Complete los campos requeridos.'),
+          backgroundColor: Colors.deepOrange,
+        ),
+      );
+      return;
+    }
 
+    // Convertir a minutos y validar formato
     final start = _toMinutes(_inicioCtrl.text.trim());
     final end = _toMinutes(_finCtrl.text.trim());
-    if (start == null || end == null || end <= start) {
+    if (start == null || end == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Horario invalido: la hora de fin debe ser mayor.'),
+        SnackBar(
+          content: const Text('Formato de hora inválido. Use HH:MM.'),
+          backgroundColor: Colors.deepOrange,
         ),
       );
       return;
     }
 
-    final materia = _materiaCtrl.text.trim().toLowerCase();
-    if (materia == 'inteligencia artificial' && _inicioCtrl.text.trim() == '08:00') {
+    // E2: Horario inválido (fin debe ser estrictamente mayor a inicio)
+    if (end <= start) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Conflicto detectado con un horario existente.'),
+        SnackBar(
+          content: const Text('Horario inválido: la Hora de Fin debe ser mayor que la Hora de Inicio.'),
+          backgroundColor: Colors.deepOrange,
         ),
       );
       return;
     }
 
+    final materia = _materiaCtrl.text.trim();
+    // E4: Conflicto simulado
+    if (materia == 'Inteligencia Artificial' && _inicioCtrl.text.trim() == '08:00') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Conflicto de horarios superpuestos'),
+          backgroundColor: Colors.deepOrange,
+        ),
+      );
+      return;
+    }
+
+    // E3: Simulación de llamada asíncrona que falla (servidor caído)
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+      final simulateNetworkDown = DateTime.now().microsecondsSinceEpoch > 0;
+      if (simulateNetworkDown) throw Exception('Simulated server down');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Error de conexión. Reintente más tarde.'),
+          backgroundColor: Colors.deepOrange,
+        ),
+      );
+      // NO limpiar controladores para que los datos ingresados se mantengan
+      return;
+    }
+
+    // Si llegamos aquí, se habría guardado correctamente (no sucede en demo)
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Horario actualizado correctamente.'),
+      SnackBar(
+        content: const Text('Horario actualizado correctamente.'),
+        backgroundColor: Colors.green,
       ),
     );
+
+    // Limpiar campos después del guardado exitoso
+    _materiaCtrl.clear();
+    _inicioCtrl.clear();
+    _finCtrl.clear();
+    _tolCtrl.clear();
   }
 
   int? _toMinutes(String value) {
