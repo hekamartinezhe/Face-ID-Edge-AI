@@ -1,6 +1,11 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import '../app_colors.dart';
+import '../services/image_processor.dart';
+import '../services/load_orchestrator_service.dart';
 import 'success_screen.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -19,6 +24,7 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _showBoundingBox = false;
   bool _isProcessing = false;
   Color _boxColor = AppColors.successGreen;
+  OrchestratorResult? _lastResult;
 
   @override
   void initState() {
@@ -68,40 +74,71 @@ class _CameraScreenState extends State<CameraScreen> {
             {};
     final String mode = (args['mode'] as String?) ?? 'attendance';
     final bool isEnrollment = mode == 'enrollment';
-    final now = TimeOfDay.now();
-    final bool isRetardo = !isEnrollment && now.minute > 10;
+    final String enrollmentName = args['name'] as String? ?? 'Desconocido';
+    final String matricula = args['matricula'] as String? ?? 'TIC-000000';
 
     setState(() {
       _showBoundingBox = true;
-      _boxColor = isRetardo ? const Color(0xFFF2C94C) : AppColors.successGreen;
-    });
-
-    await Future.delayed(const Duration(milliseconds: 700));
-
-    if (!mounted) return;
-    setState(() {
       _isProcessing = true;
+      _lastResult = null;
     });
 
-    // Simula procesamiento asíncrono edge.
-    await Future.delayed(const Duration(milliseconds: 1500));
+    try {
+      // 1. Capturar imagen
+      final XFile image = await _cameraController!.takePicture();
 
-    if (!mounted) return;
-    Navigator.pushNamed(
-      context,
-      SuccessScreen.routeName,
-      arguments: {
-        'mode': mode,
-        'status': isRetardo ? 'Retardo' : 'Presente',
-        'name': (args['name'] as String?) ?? 'Hector Kaleb Martinez Hernandez',
-        'matricula': (args['matricula'] as String?) ?? 'TIC-320042',
-      },
-    );
+      // 2. Leer bytes y corregir orientación en Isolate usando ImageProcessor
+      final Uint8List fileBytes = await File(image.path).readAsBytes();
+      final Uint8List processedBytes = await ImageProcessor.instance.fixOrientation(fileBytes);
 
-    setState(() {
-      _isProcessing = false;
-      _showBoundingBox = false;
-    });
+      // 3. Enviar a Orquestador (Edge vs Cloud)
+      final orchestration = await LoadOrchestratorService.instance.processFace(
+        processedBytes,
+        isEnrollment: isEnrollment,
+        name: enrollmentName,
+      );
+
+      setState(() {
+        _lastResult = orchestration;
+        _boxColor = orchestration.result.match ? AppColors.successGreen : Colors.redAccent;
+      });
+
+      // Pequeña pausa para mostrar badge/feedback
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      if (!mounted) return;
+
+      if (orchestration.result.status == 'error' || !orchestration.result.match) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ ${orchestration.result.message ?? "Rostro desconocido"}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      } else {
+        final now = TimeOfDay.now();
+        final bool isRetardo = !isEnrollment && now.minute > 15;
+        Navigator.pushReplacementNamed(
+          context,
+          SuccessScreen.routeName,
+          arguments: {
+            'mode': mode,
+            'status': isEnrollment ? 'Enrolado' : (isRetardo ? 'Retardo' : 'Presente'),
+            'name': orchestration.result.label ?? enrollmentName,
+            'matricula': matricula,
+          },
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _showBoundingBox = false;
+        });
+      }
+    }
   }
 
   @override

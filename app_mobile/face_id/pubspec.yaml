@@ -1,5 +1,5 @@
 name: face_id
-description: "A new Flutter project."
+description: "Sistema de asistencia facial con Orquestador de Carga Híbrida"
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -10,20 +10,23 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-  cupertino_icons: ^1.0.8
   
-  # Gestión de cámara
+  # Iconos básicos
+  cupertino_icons: ^1.0.8
+
+  # Gestión de cámara e imagen (Fix para S23 Ultra)
   camera: ^0.12.0
-  tflite_flutter: ^0.12.1
-  # Detección de rostros
-  google_mlkit_face_detection: ^0.13.2
   image: ^4.2.0
+  
+  # IA y Modelos
+  tflite_flutter: ^0.12.1
+  google_mlkit_face_detection: ^0.13.2
+  
   # Manejo de rutas y archivos
   path_provider: ^2.1.1
   path: ^1.8.3
   
-  # Comunicación con la API
+  # Comunicación con la API y Persistencia
   http: ^1.1.0
   shared_preferences: ^2.5.4
 
@@ -34,4 +37,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # Aquí agregarás los assets del modelo de IA más adelante
+  # Si tienes assets (fotos o modelos .tflite), agrégalos aquí abajo:
+  # assets:
+  #   - assets/models/

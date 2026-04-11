@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import 'dashboard_screen.dart';
+import 'camera_screen.dart';
 
 enum UserRole { alumno, docente }
 
@@ -121,11 +122,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   foregroundColor: AppColors.onDeepBlue,
                 ),
                 onPressed: () {
+                  final String name = _selectedRole == UserRole.docente
+                      ? 'Dra. Lizbeth Geraldine Ibarra'
+                      : 'Héctor Kaleb Martínez';
+                  final String matricula = _selectedRole == UserRole.docente ? 'DOC-0001' : 'TIC-320042';
+
                   Navigator.pushReplacementNamed(
                     context,
-                    DashboardScreen.routeName,
+                    CameraScreen.routeName,
                     arguments: {
-                      'isDocente': _selectedRole == UserRole.docente,
+                      'mode': 'attendance',
+                      'name': name,
+                      'matricula': matricula,
                     },
                   );
                 },
