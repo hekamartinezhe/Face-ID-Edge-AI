@@ -11,7 +11,7 @@ class ApiService {
   ApiService._internal();
 
   // URL pública de ngrok para compilar y conectar con el backend.
-  static const String baseUrl = 'https://bc26-177-229-178-140.ngrok-free.app';
+  static const String baseUrl = 'https://59d9-177-229-178-140.ngrok-free.app';
   // static const String baseUrl = 'http://192.168.1.100:8000'; // Desarrollo local
   
   String? _authToken;
@@ -26,6 +26,8 @@ class ApiService {
   
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
     if (_authToken != null) 'Authorization': 'Bearer $_authToken',
   };
 
@@ -35,7 +37,7 @@ class ApiService {
   Future<UserModel> login(String email, String password) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _headers,
       body: jsonEncode({
         'email': email,
         'password': password,
@@ -58,7 +60,7 @@ class ApiService {
     
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login-face'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _headers,
       body: jsonEncode({'image': base64Image}),
     );
 
@@ -381,8 +383,8 @@ class ApiService {
   /// Verificar conexión con el servidor
   Future<bool> healthCheck() async {
     try {
-      final response = await http
-          .get(Uri.parse('$baseUrl/health'))
+        final response = await http
+          .get(Uri.parse('$baseUrl/health'), headers: _headers)
           .timeout(const Duration(seconds: 5));
       return response.statusCode == 200;
     } catch (e) {

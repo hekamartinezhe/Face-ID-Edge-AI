@@ -521,7 +521,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
   double _confianza = 0.0;
 
   // API URL - cambiar por tu URL de ngrok
-  final String apiUrl = "https://b074-177-229-178-140.ngrok-free.app";
+  final String apiUrl = "https://59d9-177-229-178-140.ngrok-free.app";
 
   // Detector de rostros
   final FaceDetector _faceDetector = FaceDetector(
@@ -4680,7 +4680,7 @@ class ApiClient {
   static final ApiClient instance = ApiClient._();
 
   // Por defecto uso tu túnel ngrok; puedes cambiarlo en tiempo de ejecución. kaleb
-  String baseUrl = 'https://7f80-177-229-178-140.ngrok-free.app';
+  String baseUrl = 'https://59d9-177-229-178-140.ngrok-free.app';
   bool serverOnline = false;
   Map<String, dynamic>? serverInfo;
 

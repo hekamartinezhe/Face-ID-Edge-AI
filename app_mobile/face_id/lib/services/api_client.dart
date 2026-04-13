@@ -10,7 +10,7 @@ class ApiClient {
   static final ApiClient instance = ApiClient._();
 
   // URL de ngrok actual para compilar y conectar con el backend.
-  String baseUrl = 'https://81ea-177-229-178-140.ngrok-free.app';
+  String baseUrl = 'https://59d9-177-229-178-140.ngrok-free.app';
   bool serverOnline = false;
   Map<String, dynamic>? serverInfo;
 
@@ -18,7 +18,10 @@ class ApiClient {
   Future<bool> checkStatus({Duration timeout = const Duration(seconds: 5), String? deviceId}) async {
     try {
       final uri = Uri.parse('$baseUrl/status');
-      final resp = await http.get(uri).timeout(timeout);
+      final resp = await http.get(uri, headers: {
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+      }).timeout(timeout);
       if (resp.statusCode != 200) {
         serverOnline = false;
         serverInfo = null;
@@ -60,7 +63,11 @@ class ApiClient {
       }
       final resp = await http.post(
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
         body: jsonEncode(bodyMap),
       ).timeout(timeout);
 
@@ -85,7 +92,11 @@ class ApiClient {
       'device_id': deviceId,
     });
 
-    final headers = {'Content-Type': 'application/json'};
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    };
     if (token != null) headers['Authorization'] = 'Bearer $token';
 
     final resp = await http.post(url, headers: headers, body: body).timeout(const Duration(seconds: 10));
@@ -109,6 +120,8 @@ class ApiClient {
     final uri = Uri.parse('$baseUrl/asistence');
     final request = http.MultipartRequest('POST', uri);
     request.files.add(http.MultipartFile.fromBytes('file', imageBytes, filename: filename ?? 'frame.jpg'));
+    request.headers['ngrok-skip-browser-warning'] = 'true';
+    request.headers['Accept'] = 'application/json';
     if (token != null) request.headers['Authorization'] = 'Bearer $token';
 
     final streamed = await request.send().timeout(const Duration(seconds: 15));
@@ -166,6 +179,8 @@ class ApiClient {
     final request = http.MultipartRequest('POST', uri);
     request.fields['nombre'] = nombre;
     request.files.add(http.MultipartFile.fromBytes('file', imageBytes, filename: filename ?? 'frame.jpg'));
+    request.headers['ngrok-skip-browser-warning'] = 'true';
+    request.headers['Accept'] = 'application/json';
     if (token != null) request.headers['Authorization'] = 'Bearer $token';
 
     final streamed = await request.send().timeout(const Duration(seconds: 15));
