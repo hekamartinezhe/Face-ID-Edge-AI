@@ -2,8 +2,10 @@
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
+import '../login_screen.dart';
 import 'alumnos_screen.dart';
 import 'asistencias_screen.dart';
+import 'package:face_id/screens/docente/docente_schedule_screen.dart';
 import 'reportes_screen.dart';
 import 'gestion_screen.dart';
 import 'registrar_alumno_screen.dart';
@@ -56,7 +58,7 @@ class _DocenteDashboardScreenState extends State<DocenteDashboardScreen> {
             onPressed: () async {
               await _auth.logout();
               if (!mounted) return;
-              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              Navigator.of(context).pushNamedAndRemoveUntil(LoginScreen.routeName, (route) => false);
             },
           ),
         ],
@@ -213,36 +215,46 @@ class _DocenteDashboardScreenState extends State<DocenteDashboardScreen> {
             childAspectRatio: 1.2,
             children: [
               _buildQuickAccessCard(
-                icon: Icons.person_add,
-                title: 'Registrar Alumno',
-                subtitle: 'Nuevo registro facial',
-                color: const Color(0xFF00B894),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RegistrarAlumnoScreen()),
-                ),
+              icon: Icons.person_add,
+              title: 'Registrar Alumno',
+              subtitle: 'Nuevo registro facial',
+              color: const Color(0xFF00B894),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RegistrarAlumnoScreen()),
               ),
-              _buildQuickAccessCard(
-                icon: Icons.list_alt,
-                title: 'Ver Alumnos',
-                subtitle: 'Lista completa',
-                color: const Color(0xFF0984E3),
-                onTap: () => setState(() => _selectedIndex = 1),
+            ),
+            _buildQuickAccessCard(
+              icon: Icons.list_alt,
+              title: 'Ver Alumnos',
+              subtitle: 'Lista completa',
+              color: const Color(0xFF0984E3),
+              onTap: () => setState(() => _selectedIndex = 1),
+            ),
+            _buildQuickAccessCard(
+              icon: Icons.schedule,
+              title: 'Horario completo',
+              subtitle: 'Ver clases y aulas',
+              color: const Color(0xFF6C5CE7),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => DocenteScheduleScreen(docente: widget.user)),
               ),
-              _buildQuickAccessCard(
-                icon: Icons.fact_check,
-                title: 'Asistencias',
-                subtitle: 'Control del día',
-                color: const Color(0xFFFDCB6E),
-                onTap: () => setState(() => _selectedIndex = 2),
-              ),
-              _buildQuickAccessCard(
-                icon: Icons.bar_chart,
-                title: 'Reportes',
-                subtitle: 'Estadísticas',
-                color: const Color(0xFFE17055),
-                onTap: () => setState(() => _selectedIndex = 3),
-              ),
+            ),
+            _buildQuickAccessCard(
+              icon: Icons.fact_check,
+              title: 'Asistencias',
+              subtitle: 'Control del día',
+              color: const Color(0xFFFDCB6E),
+              onTap: () => setState(() => _selectedIndex = 2),
+            ),
+            _buildQuickAccessCard(
+              icon: Icons.bar_chart,
+              title: 'Reportes',
+              subtitle: 'Estadísticas',
+              color: const Color(0xFFE17055),
+              onTap: () => setState(() => _selectedIndex = 3),
+            ),
             ],
           ),
           

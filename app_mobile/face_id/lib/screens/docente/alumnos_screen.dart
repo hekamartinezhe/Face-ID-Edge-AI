@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../edit_user_screen.dart';
 
 /// Lista de Alumnos - Figura 26
 /// Visualización de alumnos registrados en el sistema
@@ -423,9 +424,21 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
   }
 
   void _editarAlumno(Map<String, dynamic> alumno) {
-    // TODO: Implementar edición
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Editar alumno - Próximamente')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditUserScreen(
+          user: {
+            'id': alumno['matricula'],
+            'name': alumno['nombre'],
+            'email': '${alumno['matricula']}@instituto.edu.mx',
+            'role': 'alumno',
+            'matricula': alumno['matricula'],
+            'carrera': alumno['carrera'],
+            'grupo': alumno['grupo'],
+          },
+        ),
+      ),
     );
   }
 

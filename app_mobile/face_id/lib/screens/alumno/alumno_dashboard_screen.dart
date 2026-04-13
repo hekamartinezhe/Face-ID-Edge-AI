@@ -1,14 +1,16 @@
 // ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
+import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
+import '../login_screen.dart';
 import 'tomar_asistencia_screen.dart';
 
 /// Vista principal del Alumno - Figura 20, 21, 22, 23
-/// Muestra el horario y permite tomar asistencia con reconocimiento facial
+/// Muestra el horario del alumno y permite tomar asistencia con reconocimiento facial
 class AlumnoDashboardScreen extends StatefulWidget {
   final UserModel user;
-  
+
   const AlumnoDashboardScreen({super.key, required this.user});
 
   @override
@@ -17,34 +19,61 @@ class AlumnoDashboardScreen extends StatefulWidget {
 
 class _AlumnoDashboardScreenState extends State<AlumnoDashboardScreen> {
   final AuthService _auth = AuthService();
-  
-  // Simulación de datos del horario del alumno
-  final List<Map<String, dynamic>> _clasesHoy = [
-    {
-      'materia': 'Inteligencia Artificial',
-      'docente': 'Dra. Lizbeth Ibarra',
-      'horaInicio': '08:00',
-      'horaFin': '10:00',
-      'aula': 'Lab-CMD-01',
-      'estado': 'pendiente', // pendiente, asistido, retardo, falta
-    },
-    {
-      'materia': 'Desarrollo Móvil',
-      'docente': 'Ing. Carlos Ortiz',
-      'horaInicio': '10:30',
-      'horaFin': '12:30',
-      'aula': 'Lab-CMD-02',
-      'estado': 'pendiente',
-    },
-    {
-      'materia': 'Base de Datos',
-      'docente': 'Ing. Julissa Gutiérrez',
-      'horaInicio': '13:00',
-      'horaFin': '15:00',
-      'aula': 'Aula-304',
-      'estado': 'asistido',
-    },
-  ];
+  final ApiService _api = ApiService();
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _clasesHoy = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHorario();
+  }
+
+  Future<void> _loadHorario() async {
+    try {
+      final horario = await _api.getHorario(widget.user.id);
+      setState(() {
+        _clasesHoy = horario.map((item) {
+          return {
+            'id': item['id'] ?? item['clase_id'] ?? item['materia'] ?? 'clase-unknown',
+            'materia': item['materia'] ?? item['nombre'] ?? 'Clase',
+            'docente': item['docente'] ?? item['teacher'] ?? 'Docente',
+            'horaInicio': item['hora_inicio'] ?? item['horaInicio'] ?? '08:00',
+            'horaFin': item['hora_fin'] ?? item['horaFin'] ?? '10:00',
+            'aula': item['aula'] ?? item['salon'] ?? 'Aula',
+            'estado': item['estado'] ?? 'pendiente',
+          };
+        }).toList();
+      });
+    } catch (_) {
+      setState(() {
+        _clasesHoy = [
+          {
+            'materia': 'Inteligencia Artificial',
+            'docente': 'Dra. Lizbeth Ibarra',
+            'horaInicio': '08:00',
+            'horaFin': '10:00',
+            'aula': 'Lab-CMD-01',
+            'estado': 'pendiente',
+            'id': 'ia-01',
+          },
+          {
+            'materia': 'Desarrollo Móvil',
+            'docente': 'Ing. Carlos Ortiz',
+            'horaInicio': '10:30',
+            'horaFin': '12:30',
+            'aula': 'Lab-CMD-02',
+            'estado': 'pendiente',
+            'id': 'dm-02',
+          },
+        ];
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,14 +108,13 @@ class _AlumnoDashboardScreenState extends State<AlumnoDashboardScreen> {
             onPressed: () async {
               await _auth.logout();
               if (!mounted) return;
-              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              Navigator.of(context).pushNamedAndRemoveUntil(LoginScreen.routeName, (route) => false);
             },
           ),
         ],
       ),
       body: Column(
         children: [
-          // Header con fecha
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -116,32 +144,63 @@ class _AlumnoDashboardScreenState extends State<AlumnoDashboardScreen> {
                     fontSize: 16,
                   ),
                 ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _clasesHoy.isEmpty ? null : () => _navigateToAttendance(),
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text('Registrar asistencia'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF1E3799),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-          
           const SizedBox(height: 20),
-          
-          // Lista de clases
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _clasesHoy.length,
-              itemBuilder: (context, index) {
-                final clase = _clasesHoy[index];
-                return _buildClaseCard(clase);
-              },
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _clasesHoy.isEmpty
+                    ? const Center(child: Text('No hay clases programadas hoy.'))
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _clasesHoy.length,
+                        itemBuilder: (context, index) {
+                          final clase = _clasesHoy[index];
+                          return _buildClaseCard(clase);
+                        },
+                      ),
           ),
         ],
       ),
     );
   }
 
+  void _navigateToAttendance() {
+    final pending = _clasesHoy.firstWhere(
+      (clase) => clase['estado'] == 'pendiente',
+      orElse: () => _clasesHoy.first,
+    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TomarAsistenciaScreen(
+          user: widget.user,
+          clase: pending,
+        ),
+      ),
+    );
+  }
+
   Widget _buildClaseCard(Map<String, dynamic> clase) {
-    final Color estadoColor = _getEstadoColor(clase['estado']);
-    final IconData estadoIcon = _getEstadoIcon(clase['estado']);
-    
+    final Color estadoColor = _getEstadoColor(clase['estado'] as String);
+    final IconData estadoIcon = _getEstadoIcon(clase['estado'] as String);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 4,
@@ -158,7 +217,7 @@ class _AlumnoDashboardScreenState extends State<AlumnoDashboardScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    clase['materia'],
+                    clase['materia'] as String,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -179,7 +238,7 @@ class _AlumnoDashboardScreenState extends State<AlumnoDashboardScreen> {
                       Icon(estadoIcon, size: 16, color: estadoColor),
                       const SizedBox(width: 4),
                       Text(
-                        clase['estado'].toUpperCase(),
+                        (clase['estado'] as String).toUpperCase(),
                         style: TextStyle(
                           color: estadoColor,
                           fontSize: 12,
@@ -193,16 +252,21 @@ class _AlumnoDashboardScreenState extends State<AlumnoDashboardScreen> {
             ),
             const SizedBox(height: 12),
             _buildInfoRow(Icons.access_time, '${clase['horaInicio']} - ${clase['horaFin']}'),
-            _buildInfoRow(Icons.person, clase['docente']),
-            _buildInfoRow(Icons.location_on, clase['aula']),
+            _buildInfoRow(Icons.person, clase['docente'] as String),
+            _buildInfoRow(Icons.location_on, clase['aula'] as String),
             const SizedBox(height: 16),
-            
-            // Botón de asistencia
             if (clase['estado'] == 'pendiente')
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _tomarAsistencia(clase),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TomarAsistenciaScreen(user: widget.user, clase: clase),
+                      ),
+                    );
+                  },
                   icon: const Icon(Icons.camera_alt),
                   label: const Text('TOMAR ASISTENCIA'),
                   style: ElevatedButton.styleFrom(
@@ -214,8 +278,8 @@ class _AlumnoDashboardScreenState extends State<AlumnoDashboardScreen> {
                     ),
                   ),
                 ),
-              )
-            else if (clase['estado'] == 'asistido')
+              ),
+            if (clase['estado'] == 'asistido')
               SizedBox(
                 width: double.infinity,
                 child: Container(
@@ -258,7 +322,6 @@ class _AlumnoDashboardScreenState extends State<AlumnoDashboardScreen> {
             text,
             style: const TextStyle(
               fontSize: 14,
-              color: Colors.black87,
             ),
           ),
         ],
@@ -269,137 +332,33 @@ class _AlumnoDashboardScreenState extends State<AlumnoDashboardScreen> {
   Color _getEstadoColor(String estado) {
     switch (estado) {
       case 'asistido':
+      case 'puntual':
         return Colors.green;
       case 'retardo':
         return Colors.orange;
       case 'falta':
         return Colors.red;
       default:
-        return Colors.blue;
+        return Colors.grey;
     }
   }
 
   IconData _getEstadoIcon(String estado) {
     switch (estado) {
+      case 'puntual':
       case 'asistido':
         return Icons.check_circle;
       case 'retardo':
-        return Icons.warning;
+        return Icons.watch_later;
       case 'falta':
         return Icons.cancel;
       default:
-        return Icons.schedule;
+        return Icons.help;
     }
   }
 
   String _getFormattedDate() {
     final now = DateTime.now();
-    final dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-    final meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 
-                   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-    
-    return '${dias[now.weekday - 1]}, ${now.day} de ${meses[now.month - 1]} de ${now.year}';
-  }
-
-  void _tomarAsistencia(Map<String, dynamic> clase) {
-    // Verificar si está dentro del horario permitido
-    final now = DateTime.now();
-    final horaInicio = _parseHora(clase['horaInicio']);
-    final horaFin = _parseHora(clase['horaFin']);
-    
-    // Ventana de 30 min antes de inicio hasta fin de clase
-    final ventanaInicio = horaInicio.subtract(const Duration(minutes: 30));
-    
-    if (now.isBefore(ventanaInicio)) {
-      // Fuera de horario - Figura 23
-      _showResultadoDialog(
-        title: 'Fuera de Horario',
-        message: 'Aún no es hora de clase.\nLa clase comienza a las ${clase['horaInicio']}.',
-        icon: Icons.access_time_filled,
-        color: Colors.orange,
-      );
-      return;
-    }
-    
-    if (now.isAfter(horaFin)) {
-      // Fuera de horario - Figura 23
-      _showResultadoDialog(
-        title: 'Clase Terminada',
-        message: 'La clase ya ha finalizado.\nNo se puede registrar asistencia.',
-        icon: Icons.event_busy,
-        color: Colors.red,
-      );
-      return;
-    }
-    
-    // Navegar a pantalla de reconocimiento facial
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TomarAsistenciaScreen(
-          user: widget.user,
-          clase: clase,
-        ),
-      ),
-    );
-  }
-
-  DateTime _parseHora(String horaStr) {
-    final now = DateTime.now();
-    final parts = horaStr.split(':');
-    return DateTime(now.year, now.month, now.day, 
-                    int.parse(parts[0]), int.parse(parts[1]));
-  }
-
-  void _showResultadoDialog({
-    required String title,
-    required String message,
-    required IconData icon,
-    required Color color,
-  }) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 80, color: color),
-            const SizedBox(height: 20),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.black54,
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text('ENTENDIDO'),
-            ),
-          ],
-        ),
-      ),
-    );
+    return '${now.day}/${now.month}/${now.year}';
   }
 }

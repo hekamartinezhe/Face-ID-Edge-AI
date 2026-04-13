@@ -14,12 +14,16 @@ class EnrollmentScreen extends StatefulWidget {
 class _EnrollmentScreenState extends State<EnrollmentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
   final _matriculaCtrl = TextEditingController();
   final _groupCtrl = TextEditingController();
 
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
     _matriculaCtrl.dispose();
     _groupCtrl.dispose();
     super.dispose();
@@ -28,21 +32,14 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
   void _continueToCapture() {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_matriculaCtrl.text.trim().toUpperCase() == 'TIC-320042') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Matricula duplicada: el alumno ya existe.'),
-        ),
-      );
-      return;
-    }
-
     Navigator.pushNamed(
       context,
       CameraScreen.routeName,
       arguments: {
         'mode': 'enrollment',
         'name': _nameCtrl.text.trim(),
+        'email': _emailCtrl.text.trim(),
+        'password': _passwordCtrl.text.trim(),
         'matricula': _matriculaCtrl.text.trim(),
         'group': _groupCtrl.text.trim(),
       },
@@ -71,14 +68,28 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
               const SizedBox(height: 14),
               _field(
                 controller: _nameCtrl,
-                label: 'Nombre',
+                label: 'Nombre completo',
                 errorText: 'Captura el nombre del alumno',
               ),
               const SizedBox(height: 10),
               _field(
+                controller: _emailCtrl,
+                label: 'Correo institucional',
+                errorText: 'Captura el correo institucional',
+                textInputType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 10),
+              _field(
+                controller: _passwordCtrl,
+                label: 'Contraseña inicial',
+                errorText: 'Captura la contraseña',
+                obscureText: true,
+              ),
+              const SizedBox(height: 10),
+              _field(
                 controller: _matriculaCtrl,
-                label: 'Matricula',
-                errorText: 'Captura la matricula',
+                label: 'Matrícula',
+                errorText: 'Captura la matrícula',
               ),
               const SizedBox(height: 10),
               _field(
@@ -94,7 +105,7 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
                 ),
                 onPressed: _continueToCapture,
                 icon: const Icon(Icons.camera_alt_rounded),
-                label: const Text('Continuar a Captura Facial'),
+                label: const Text('Continuar con captura facial'),
               ),
             ],
           ),
@@ -107,9 +118,13 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
     required TextEditingController controller,
     required String label,
     required String errorText,
+    bool obscureText = false,
+    TextInputType textInputType = TextInputType.text,
   }) {
     return TextFormField(
       controller: controller,
+      obscureText: obscureText,
+      keyboardType: textInputType,
       decoration: InputDecoration(
         labelText: label,
         filled: true,
@@ -120,6 +135,8 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
       ),
       validator: (value) {
         if (value == null || value.trim().isEmpty) return errorText;
+        if (controller == _emailCtrl && !value.contains('@')) return 'Ingresa un correo válido';
+        if (controller == _passwordCtrl && value.trim().length < 6) return 'La contraseña debe tener al menos 6 caracteres';
         return null;
       },
     );

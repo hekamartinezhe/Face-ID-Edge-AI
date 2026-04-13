@@ -9,13 +9,13 @@ class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
 
-  // Por defecto uso tu túnel ngrok; puedes cambiarlo en tiempo de ejecución. kaleb
-  String baseUrl = 'https://7f80-177-229-178-140.ngrok-free.app';
+  // URL de ngrok actual para compilar y conectar con el backend.
+  String baseUrl = 'https://81ea-177-229-178-140.ngrok-free.app';
   bool serverOnline = false;
   Map<String, dynamic>? serverInfo;
 
   /// Consulta el endpoint `/status` y guarda el estado en memoria.
-  Future<bool> checkStatus({Duration timeout = const Duration(seconds: 5)}) async {
+  Future<bool> checkStatus({Duration timeout = const Duration(seconds: 5), String? deviceId}) async {
     try {
       final uri = Uri.parse('$baseUrl/status');
       final resp = await http.get(uri).timeout(timeout);
@@ -27,10 +27,51 @@ class ApiClient {
       final Map<String, dynamic> data = jsonDecode(resp.body);
       serverInfo = data;
       serverOnline = (data['status'] == 'online');
+
+      if (serverOnline) {
+        await _postStatus(
+          status: 'online',
+          deviceId: deviceId,
+          timeout: timeout,
+        );
+      }
+
       return serverOnline;
     } catch (e) {
       serverOnline = false;
       serverInfo = null;
+      return false;
+    }
+  }
+
+  Future<bool> _postStatus({
+    required String status,
+    String? deviceId,
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/status');
+      final bodyMap = <String, dynamic>{
+        'status': status,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+      if (deviceId != null) {
+        bodyMap['device_id'] = deviceId;
+      }
+      final resp = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(bodyMap),
+      ).timeout(timeout);
+
+      if (resp.statusCode != 200) {
+        return false;
+      }
+
+      final Map<String, dynamic> data = jsonDecode(resp.body);
+      serverInfo = data;
+      return true;
+    } catch (_) {
       return false;
     }
   }

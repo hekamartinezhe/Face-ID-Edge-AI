@@ -1,10 +1,9 @@
 // ignore_for_file: use_build_context_synchronously, prefer_interpolation_to_compose_strings, unused_import
-import 'dart:convert';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../../models/user_model.dart';
+import '../../services/api_service.dart';
 
 /// Pantalla para tomar asistencia con reconocimiento facial
 /// Figura 20 (Puntual), Figura 21 (Retardo), Figura 22 (No reconocido)
@@ -30,8 +29,7 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
   String _resultStatus = ''; // 'puntual', 'retardo', 'no_reconocido'
   double _confianza = 0.0;
 
-  // API URL - cambiar por tu URL de ngrok
-  final String apiUrl = "https://b074-177-229-178-140.ngrok-free.app";
+  final ApiService _api = ApiService();
 
   // Detector de rostros
   final FaceDetector _faceDetector = FaceDetector(
@@ -95,46 +93,35 @@ class _TomarAsistenciaScreenState extends State<TomarAsistenciaScreen>
         return;
       }
 
-      // 3. Enviar a API para reconocimiento
+      // 3. Enviar a API para reconocimiento y asistencia
       final bytes = await image.readAsBytes();
-      final base64Image = base64Encode(bytes);
 
-      final response = await http.post(
-        Uri.parse('$apiUrl/recognize_and_attendance'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'image': base64Image,
-          'clase_id': widget.clase['materia'],
-          'user_id': widget.user.id,
-        }),
-        ).timeout(const Duration(seconds: 10));
+      final response = await _api.registrarAsistencia(
+        alumnoId: widget.user.id,
+        claseId: widget.clase['id']?.toString() ?? widget.clase['materia'],
+        faceImage: bytes,
+      );
 
-      final result = jsonDecode(response.body);
+      final now = DateTime.now();
+      final horaInicio = _parseHora(widget.clase['horaInicio']);
+      final diferencia = now.difference(horaInicio);
+      final bool reconocido = response['status']?.toString().toLowerCase() == 'ok' ||
+          response['status']?.toString().toLowerCase() == 'success';
+      final double confianza = (response['confidence'] as num?)?.toDouble() ?? 0.95;
+      final String mensaje = response['message']?.toString() ?? 'Asistencia registrada';
 
-      if (response.statusCode == 200 && result['reconocido'] == true) {
-        // Calcular si es puntual o retardo
-        final now = DateTime.now();
-        final horaInicio = _parseHora(widget.clase['horaInicio']);
-        final diferencia = now.difference(horaInicio);
-        
-        if (!mounted) return;
-        setState(() {
-          _confianza = result['confianza'] ?? 0.95;
-          if (diferencia.inMinutes > 15) {
-            _resultStatus = 'retardo'; // Figura 21
-          } else {
-            _resultStatus = 'puntual'; // Figura 20
-          }
-          _showResult = true;
-        });
-      } else {
-        // No reconocido - Figura 22
-        if (!mounted) return;
-        setState(() {
+      if (!mounted) return;
+      setState(() {
+        _confianza = confianza;
+        if (!reconocido) {
           _resultStatus = 'no_reconocido';
-          _showResult = true;
-        });
-      }
+        } else if (diferencia.inMinutes > 15) {
+          _resultStatus = 'retardo';
+        } else {
+          _resultStatus = 'puntual';
+        }
+        _showResult = true;
+      });
     } catch (e) {
       if (!mounted) return;
       _showSnack("Error: $e", isError: true);

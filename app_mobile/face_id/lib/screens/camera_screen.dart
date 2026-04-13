@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import '../app_colors.dart';
+import '../models/recognition_result.dart';
+import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../services/image_processor.dart';
 import '../services/load_orchestrator_service.dart';
+import 'dashboard_screen.dart';
 import 'success_screen.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -24,6 +27,9 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _showBoundingBox = false;
   bool _isProcessing = false;
   Color _boxColor = AppColors.successGreen;
+
+  final List<CameraDescription> _availableCameras = [];
+  int _selectedCameraIndex = 0;
 
   @override
   void initState() {
@@ -52,24 +58,17 @@ class _CameraScreenState extends State<CameraScreen> {
         });
         return;
       }
-      final frontCam = cameras.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.front,
-        orElse: () => cameras.first,
-      );
-      final controller = CameraController(
-        frontCam,
-        ResolutionPreset.high,
-        enableAudio: false,
-      );
-      await controller.initialize();
-      if (!mounted) {
-        await controller.dispose();
-        return;
-      }
-      setState(() {
-        _cameraController = controller;
-        _cameraReady = true;
-      });
+      _availableCameras.clear();
+      _availableCameras.addAll(cameras);
+      _selectedCameraIndex = cameras.indexWhere(
+            (camera) => camera.lensDirection == CameraLensDirection.front,
+          ) >=
+          0
+          ? cameras.indexWhere(
+              (camera) => camera.lensDirection == CameraLensDirection.front,
+            )
+          : 0;
+      await _initializeCameraController(_availableCameras[_selectedCameraIndex]);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -78,6 +77,39 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
+  Future<void> _initializeCameraController(CameraDescription camera) async {
+    final controller = CameraController(
+      camera,
+      ResolutionPreset.high,
+      enableAudio: false,
+    );
+    await controller.initialize();
+    if (!mounted) {
+      await controller.dispose();
+      return;
+    }
+    setState(() {
+      _cameraController = controller;
+      _cameraReady = true;
+      _cameraError = null;
+    });
+  }
+
+  Future<void> _switchCamera() async {
+    if (_availableCameras.length < 2 || _isProcessing) return;
+    final nextIndex = (_selectedCameraIndex + 1) % _availableCameras.length;
+    setState(() {
+      _cameraReady = false;
+      _cameraError = null;
+    });
+    await _cameraController?.dispose();
+    _selectedCameraIndex = nextIndex;
+    await _initializeCameraController(_availableCameras[_selectedCameraIndex]);
+  }
+
+  final AuthService _auth = AuthService();
+  final ApiService _api = ApiService();
+
   Future<void> _simulateCaptureFlow() async {
     if (_isProcessing || !_cameraReady) return;
     final args =
@@ -85,9 +117,9 @@ class _CameraScreenState extends State<CameraScreen> {
             {};
     final String mode = (args['mode'] as String?) ?? 'attendance';
     final bool isEnrollment = mode == 'enrollment';
-    final String enrollmentName = args['name'] as String? ?? 'Desconocido';
+    final bool isLoginFace = mode == 'login-face';
     final String matricula = args['matricula'] as String? ?? 'TIC-000000';
-    final bool fromTeacher = args['fromTeacher'] as bool? ?? false;
+    final String enrollmentName = args['name'] as String? ?? 'Desconocido';
 
     setState(() {
       _showBoundingBox = true;
@@ -95,47 +127,84 @@ class _CameraScreenState extends State<CameraScreen> {
     });
 
     try {
-      // 1. Capturar imagen
       final XFile image = await _cameraController!.takePicture();
-
-      // 2. Leer bytes y corregir orientación en Isolate usando ImageProcessor
       final Uint8List fileBytes = await File(image.path).readAsBytes();
       final Uint8List processedBytes = await ImageProcessor.instance.fixOrientation(fileBytes);
 
-      // 3. Enviar a Orquestador (Edge vs Cloud)
-      final orchestration = await LoadOrchestratorService.instance.processFace(
-        processedBytes,
-        isEnrollment: isEnrollment,
-        name: enrollmentName,
-      );
+      if (isLoginFace) {
+        await _auth.loginWithFace(processedBytes);
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, DashboardScreen.routeName);
+        return;
+      }
 
-      setState(() {
-        _boxColor = orchestration.result.match ? AppColors.successGreen : Colors.redAccent;
-      });
+      RecognitionResult result;
+      if (isEnrollment) {
+        final email = args['email'] as String? ?? '';
+        final password = args['password'] as String? ?? '';
+        final group = args['group'] as String? ?? '';
 
-      // Pequeña pausa para mostrar badge/feedback
-      await Future.delayed(const Duration(milliseconds: 800));
+        final alumno = await _api.registerAlumno(
+          name: enrollmentName,
+          email: email,
+          password: password,
+          matricula: matricula,
+          faceImage: processedBytes,
+          grupo: group,
+        );
 
-      if (!mounted) return;
-
-      // FIX: Pasar el objeto result completo y la latencia
-      if (orchestration.result.status == 'error') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error: ${orchestration.result.message}')),
+        result = RecognitionResult(
+          status: 'ok',
+          match: true,
+          label: alumno.name,
+          confidence: 0.96,
+          message: 'Registro facial completado',
         );
       } else {
-        Navigator.pushReplacementNamed(
-          context,
-          SuccessScreen.routeName,
-          arguments: {
-            'result': orchestration.result,
-            'mode': orchestration.mode,
-            'latency': orchestration.latencyMs,
-            'matricula': matricula,
-            'fromTeacher': fromTeacher,
-          },
+        final currentUser = _auth.currentUser;
+        if (currentUser == null) {
+          throw Exception('Usuario no autenticado');
+        }
+        final claseId = args['claseId'] as String? ?? args['group'] as String? ?? 'clase-desconocida';
+
+        final response = await _api.registrarAsistencia(
+          alumnoId: currentUser.id,
+          claseId: claseId,
+          faceImage: processedBytes,
+        );
+
+        final String mensaje = response['message']?.toString() ?? 'Asistencia registrada';
+        final bool match = response['status']?.toString().toLowerCase() == 'ok' ||
+            response['status']?.toString().toLowerCase() == 'success';
+
+        result = RecognitionResult(
+          status: response['status']?.toString() ?? 'ok',
+          match: match,
+          label: currentUser.name,
+          confidence: (response['confidence'] as num?)?.toDouble() ?? 0.94,
+          assistance: true,
+          message: mensaje,
         );
       }
+
+      setState(() {
+        _boxColor = result.match ? AppColors.successGreen : Colors.redAccent;
+      });
+
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (!mounted) return;
+
+      Navigator.pushReplacementNamed(
+        context,
+        SuccessScreen.routeName,
+        arguments: {
+          'result': result,
+          'mode': InferenceMode.cloud,
+          'latency': 0,
+          'matricula': matricula,
+          'fromTeacher': false,
+        },
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -156,12 +225,29 @@ class _CameraScreenState extends State<CameraScreen> {
             {};
     final String mode = (args['mode'] as String?) ?? 'attendance';
     final bool isEnrollment = mode == 'enrollment';
+    final bool isLoginFace = mode == 'login-face';
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isEnrollment ? 'Enrolamiento Biometrico' : 'Registro de Asistencia',
+          isEnrollment
+              ? 'Enrolamiento Biometrico'
+              : isLoginFace
+                  ? 'Ingreso con rostro'
+                  : 'Registro de Asistencia',
         ),
+        actions: [
+          if (_availableCameras.length > 1)
+            IconButton(
+              icon: Icon(
+                _availableCameras[_selectedCameraIndex].lensDirection == CameraLensDirection.front
+                    ? Icons.camera_front_rounded
+                    : Icons.camera_rear_rounded,
+              ),
+              onPressed: _switchCamera,
+              tooltip: 'Cambiar cámara',
+            ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(18),
@@ -285,7 +371,11 @@ class _CameraScreenState extends State<CameraScreen> {
                   ? null
                   : _simulateCaptureFlow,
               icon: const Icon(Icons.camera_alt_rounded),
-              label: Text(isEnrollment ? 'Capturar Rafaga' : 'Capturar'),
+              label: Text(isEnrollment
+                  ? 'Capturar y registrar'
+                  : isLoginFace
+                      ? 'Ingresar con rostro'
+                      : 'Capturar asistencia'),
             ),
           ],
         ),
