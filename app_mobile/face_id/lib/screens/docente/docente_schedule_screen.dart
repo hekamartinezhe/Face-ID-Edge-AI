@@ -38,7 +38,8 @@ class _DocenteScheduleScreenState extends State<DocenteScheduleScreen> {
             return Center(child: Text('Error al cargar horario: ${snapshot.error}'));
           }
 
-          final clases = snapshot.data ?? [];
+          final clases = List<Map<String, dynamic>>.from(snapshot.data ?? []);
+          _sortClases(clases);
           if (clases.isEmpty) {
             return const Center(
               child: Padding(
@@ -55,7 +56,7 @@ class _DocenteScheduleScreenState extends State<DocenteScheduleScreen> {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: clases.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final clase = clases[index];
               final materia = clase['materia']?.toString() ?? 'Sin materia';
@@ -73,7 +74,7 @@ class _DocenteScheduleScreenState extends State<DocenteScheduleScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: const Color.fromRGBO(0, 0, 0, 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -119,6 +120,43 @@ class _DocenteScheduleScreenState extends State<DocenteScheduleScreen> {
         },
       ),
     );
+  }
+
+  void _sortClases(List<Map<String, dynamic>> clases) {
+    const dayOrder = {
+      'lunes': 1,
+      'martes': 2,
+      'miércoles': 3,
+      'miercoles': 3,
+      'jueves': 4,
+      'viernes': 5,
+      'sábado': 6,
+      'sabado': 6,
+      'domingo': 7,
+    };
+
+    int dayIndex(String value) {
+      return dayOrder[value.toLowerCase().trim()] ?? 99;
+    }
+
+    int minuteValue(String time) {
+      final parts = time.split(':');
+      if (parts.length != 2) return 0;
+      final h = int.tryParse(parts[0]) ?? 0;
+      final m = int.tryParse(parts[1]) ?? 0;
+      return h * 60 + m;
+    }
+
+    clases.sort((a, b) {
+      final diaA = a['dia']?.toString() ?? '';
+      final diaB = b['dia']?.toString() ?? '';
+      final aIndex = dayIndex(diaA);
+      final bIndex = dayIndex(diaB);
+      if (aIndex != bIndex) return aIndex.compareTo(bIndex);
+      final inicioA = minuteValue(a['inicio']?.toString() ?? '00:00');
+      final inicioB = minuteValue(b['inicio']?.toString() ?? '00:00');
+      return inicioA.compareTo(inicioB);
+    });
   }
 
   Widget _buildInfoChip(IconData icon, String label) {

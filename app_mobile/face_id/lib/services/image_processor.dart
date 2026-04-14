@@ -14,6 +14,43 @@ class ImageProcessor {
       },
     );
   }
+
+  Future<Uint8List> compressFaceImage(
+    Uint8List bytes, {
+    int maxWidth = 720,
+    int quality = 80,
+  }) async {
+    return await compute<Map<String, dynamic>, Uint8List>(
+      _isolateCompressImage,
+      {
+        'bytes': bytes,
+        'maxWidth': maxWidth,
+        'quality': quality,
+      },
+    );
+  }
+}
+
+Uint8List _isolateCompressImage(Map<String, dynamic> params) {
+  final Uint8List bytes = params['bytes'] as Uint8List;
+  final int maxWidth = params['maxWidth'] as int? ?? 720;
+  final int quality = params['quality'] as int? ?? 80;
+
+  try {
+    final img.Image? image = img.decodeImage(bytes);
+    if (image == null) return bytes;
+
+    img.Image resized = image;
+    if (image.width > maxWidth) {
+      final int newHeight = (image.height * maxWidth / image.width).round();
+      resized = img.copyResize(image, width: maxWidth, height: newHeight);
+    }
+
+    final List<int> encoded = img.encodeJpg(resized, quality: quality);
+    return Uint8List.fromList(encoded);
+  } catch (e) {
+    return bytes;
+  }
 }
 
 Uint8List _isolateProcessImage(Map<String, dynamic> params) {

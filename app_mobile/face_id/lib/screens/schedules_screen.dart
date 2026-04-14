@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
+import '../models/user_model.dart';
+import '../services/api_service.dart';
 
 class SchedulesScreen extends StatefulWidget {
   static const String routeName = '/schedules';
@@ -11,11 +13,28 @@ class SchedulesScreen extends StatefulWidget {
 }
 
 class _SchedulesScreenState extends State<SchedulesScreen> {
+  final ApiService _api = ApiService();
   final _formKey = GlobalKey<FormState>();
   final _materiaCtrl = TextEditingController();
   final _inicioCtrl = TextEditingController();
   final _finCtrl = TextEditingController();
   final _tolCtrl = TextEditingController();
+  final _diaCtrl = TextEditingController();
+  final _aulaCtrl = TextEditingController();
+  final _grupoCtrl = TextEditingController();
+  final List<Map<String, String>> _horarios = [];
+
+  bool _isLoadingDocentes = true;
+  List<UserModel> _docentes = [];
+  UserModel? _selectedDocente;
+  bool _isSaving = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDocentes();
+  }
 
   @override
   void dispose() {
@@ -23,11 +42,31 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     _inicioCtrl.dispose();
     _finCtrl.dispose();
     _tolCtrl.dispose();
+    _diaCtrl.dispose();
+    _aulaCtrl.dispose();
+    _grupoCtrl.dispose();
     super.dispose();
   }
 
+  Future<void> _loadDocentes() async {
+    try {
+      final docentes = await _api.getDocentes();
+      if (!mounted) return;
+      setState(() {
+        _docentes = docentes;
+        _selectedDocente = docentes.isNotEmpty ? docentes.first : null;
+        _isLoadingDocentes = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingDocentes = false;
+        _errorMessage = 'No se pudieron cargar los docentes.';
+      });
+    }
+  }
+
   Future<void> _saveSchedule() async {
-    // E1: Campos incompletos
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -38,7 +77,6 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       return;
     }
 
-    // Convertir a minutos y validar formato
     final start = _toMinutes(_inicioCtrl.text.trim());
     final end = _toMinutes(_finCtrl.text.trim());
     if (start == null || end == null) {
@@ -51,7 +89,6 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       return;
     }
 
-    // E2: Horario inválido (fin debe ser estrictamente mayor a inicio)
     if (end <= start) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -62,49 +99,89 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       return;
     }
 
-    final materia = _materiaCtrl.text.trim();
-    // E4: Conflicto simulado
-    if (materia == 'Inteligencia Artificial' && _inicioCtrl.text.trim() == '08:00') {
+    if (_selectedDocente == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Conflicto de horarios superpuestos'),
+          content: const Text('Selecciona un docente para asignar el horario.'),
           backgroundColor: Colors.deepOrange,
         ),
       );
       return;
     }
 
-    // E3: Simulación de llamada asíncrona que falla (servidor caído)
+    if (_grupoCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Captura el grupo para aplicar el horario a todos los alumnos.'),
+          backgroundColor: Colors.deepOrange,
+        ),
+      );
+      return;
+    }
+
+    final mapa = {
+      'docenteId': _selectedDocente!.id,
+      'docenteNombre': _selectedDocente!.name,
+      'grupo': _grupoCtrl.text.trim(),
+      'materia': _materiaCtrl.text.trim(),
+      'inicio': _inicioCtrl.text.trim(),
+      'fin': _finCtrl.text.trim(),
+      'tolerancia': _tolCtrl.text.trim().isEmpty ? '0' : _tolCtrl.text.trim(),
+      'dia': _diaCtrl.text.trim().isEmpty ? 'Sin día' : _diaCtrl.text.trim(),
+      'aula': _aulaCtrl.text.trim().isEmpty ? 'Sin aula' : _aulaCtrl.text.trim(),
+    };
+
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+
     try {
-      await Future.delayed(const Duration(milliseconds: 500));
-      final simulateNetworkDown = DateTime.now().microsecondsSinceEpoch > 0;
-      if (simulateNetworkDown) throw Exception('Simulated server down');
+      await _api.addSchedule(
+        ownerId: _selectedDocente!.id,
+        ownerRole: 'docente',
+        materia: mapa['materia']!,
+        inicio: mapa['inicio']!,
+        fin: mapa['fin']!,
+        dia: mapa['dia'],
+        aula: mapa['aula'],
+        grupo: mapa['grupo'],
+        toleranciaMin: mapa['tolerancia'],
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _horarios.add(mapa);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Horario guardado y aplicado al grupo.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      _materiaCtrl.clear();
+      _inicioCtrl.clear();
+      _finCtrl.clear();
+      _tolCtrl.clear();
+      _diaCtrl.clear();
+      _aulaCtrl.clear();
+      _grupoCtrl.clear();
     } catch (e) {
       if (!mounted) return;
+      setState(() {
+        _errorMessage = 'No se pudo guardar el horario. Intenta de nuevo.';
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Error de conexión. Reintente más tarde.'),
-          backgroundColor: Colors.deepOrange,
+          content: Text('Error al guardar horario: $e'),
+          backgroundColor: Colors.redAccent,
         ),
       );
-      // NO limpiar controladores para que los datos ingresados se mantengan
-      return;
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
-
-    // Si llegamos aquí, se habría guardado correctamente (no sucede en demo)
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Horario actualizado correctamente.'),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    // Limpiar campos después del guardado exitoso
-    _materiaCtrl.clear();
-    _inicioCtrl.clear();
-    _finCtrl.clear();
-    _tolCtrl.clear();
   }
 
   int? _toMinutes(String value) {
@@ -121,55 +198,72 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestion de Horarios')),
+      appBar: AppBar(title: const Text('Gestión de Horarios')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Form(
-              key: _formKey,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Formulario Docente',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
-                        color: AppColors.deepBlue,
-                      ),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Nuevo horario docente',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                      color: AppColors.deepBlue,
                     ),
-                    const SizedBox(height: 14),
-                    _buildField(_materiaCtrl, 'Materia'),
-                    const SizedBox(height: 10),
-                    _buildField(_inicioCtrl, 'Hora de Inicio (HH:MM)'),
-                    const SizedBox(height: 10),
-                    _buildField(_finCtrl, 'Hora de Fin (HH:MM)'),
-                    const SizedBox(height: 10),
-                    _buildField(_tolCtrl, 'Minutos de Tolerancia'),
-                    const SizedBox(height: 14),
-                    ElevatedButton(
+                  ),
+                  const SizedBox(height: 14),
+                  _buildDocenteDropdown(),
+                  const SizedBox(height: 10),
+                  _buildField(_materiaCtrl, 'Materia'),
+                  const SizedBox(height: 10),
+                  _buildField(_grupoCtrl, 'Grupo (se aplicará a todos los alumnos)'),
+                  const SizedBox(height: 10),
+                  _buildField(_inicioCtrl, 'Hora de Inicio (HH:MM)'),
+                  const SizedBox(height: 10),
+                  _buildField(_finCtrl, 'Hora de Fin (HH:MM)'),
+                  const SizedBox(height: 10),
+                  _buildField(_diaCtrl, 'Día'),
+                  const SizedBox(height: 10),
+                  _buildField(_aulaCtrl, 'Aula / Salón'),
+                  const SizedBox(height: 10),
+                  _buildField(_tolCtrl, 'Minutos de Tolerancia'),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _saveSchedule,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.deepBlue,
                         foregroundColor: AppColors.onDeepBlue,
                       ),
-                      onPressed: _saveSchedule,
-                      child: const Text('Guardar Horario'),
+                      child: _isSaving
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('Guardar horario para el grupo'),
+                    ),
+                  ),
+                  if (_errorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: Colors.redAccent),
                     ),
                   ],
-                ),
+                ],
               ),
             ),
             const SizedBox(height: 20),
             const Text(
-              'Materias Programadas',
+              'Horarios registrados',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -177,18 +271,65 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            _buildSubjectTile(
-              title: 'Inteligencia Artificial',
-              subtitle: '08:00 - 10:00 | Tolerancia: 10 min',
-            ),
-            const SizedBox(height: 8),
-            _buildSubjectTile(
-              title: 'Redes',
-              subtitle: '10:00 - 12:00 | Tolerancia: 15 min',
-            ),
+            if (_isLoadingDocentes)
+              const Center(child: CircularProgressIndicator())
+            else if (_docentes.isEmpty)
+              const Center(child: Text('No se encontraron docentes para asignar horarios.'))
+            else if (_horarios.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'No hay horarios creados aún. Agrega uno para comenzar.',
+                  style: TextStyle(color: Colors.black54),
+                ),
+              )
+            else
+              ..._horarios.map((hora) {
+                return Column(
+                  children: [
+                    _buildSubjectTile(
+                      title: hora['materia'] ?? 'Materia',
+                      subtitle:
+                          '${hora['docenteNombre']} · Grupo ${hora['grupo']} · ${hora['dia']} · ${hora['inicio']} - ${hora['fin']} · Aula: ${hora['aula']} · Tolerancia: ${hora['tolerancia']} min',
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                );
+              }),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDocenteDropdown() {
+    if (_isLoadingDocentes) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return DropdownButtonFormField<UserModel>(
+      value: _selectedDocente,
+      decoration: InputDecoration(
+        labelText: 'Docente',
+        filled: true,
+        fillColor: AppColors.background,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      items: _docentes
+          .map((docente) => DropdownMenuItem(
+                value: docente,
+                child: Text(docente.name),
+              ))
+          .toList(),
+      onChanged: (value) {
+        setState(() {
+          _selectedDocente = value;
+        });
+      },
+      validator: (value) {
+        if (value == null) return 'Selecciona un docente';
+        return null;
+      },
     );
   }
 

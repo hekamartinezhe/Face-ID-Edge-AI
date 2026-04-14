@@ -82,6 +82,7 @@ class RecognitionService {
       final newUser = UserModel(
         id: apiResult.label!,
         name: apiResult.label!,
+        email: '${apiResult.label!.toLowerCase().replaceAll(' ', '.') }@unknown.local',
         role: UserRole.alumno,
         vector: vector,
       );

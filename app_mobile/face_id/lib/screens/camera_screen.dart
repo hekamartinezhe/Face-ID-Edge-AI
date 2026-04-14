@@ -80,19 +80,27 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void> _initializeCameraController(CameraDescription camera) async {
     final controller = CameraController(
       camera,
-      ResolutionPreset.high,
+      ResolutionPreset.medium,
       enableAudio: false,
     );
-    await controller.initialize();
-    if (!mounted) {
+    try {
+      await controller.initialize();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      setState(() {
+        _cameraController = controller;
+        _cameraReady = true;
+        _cameraError = null;
+      });
+    } on CameraException catch (e) {
       await controller.dispose();
-      return;
+      if (!mounted) return;
+      setState(() {
+        _cameraError = 'Error al iniciar la cámara: ${e.description}';
+      });
     }
-    setState(() {
-      _cameraController = controller;
-      _cameraReady = true;
-      _cameraError = null;
-    });
   }
 
   Future<void> _switchCamera() async {
@@ -129,7 +137,12 @@ class _CameraScreenState extends State<CameraScreen> {
     try {
       final XFile image = await _cameraController!.takePicture();
       final Uint8List fileBytes = await File(image.path).readAsBytes();
-      final Uint8List processedBytes = await ImageProcessor.instance.fixOrientation(fileBytes);
+      final Uint8List orientedBytes = await ImageProcessor.instance.fixOrientation(fileBytes);
+      final Uint8List processedBytes = await ImageProcessor.instance.compressFaceImage(
+        orientedBytes,
+        maxWidth: 720,
+        quality: 80,
+      );
 
       if (isLoginFace) {
         await _auth.loginWithFace(processedBytes);
